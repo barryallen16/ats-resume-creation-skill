@@ -8,6 +8,10 @@ for "survives the ATS parse" first, "wins the 30-second human skim" second.
 
 ## 1. Formatting rules (handled by the docx script, but know why)
 
+- **Author in Word/Google Docs, submit PDF.** ATS parsers are tuned on
+  Word/Docs output — Photoshop, design tools, and online builders produce
+  layouts that parse badly or not at all. Always confirm the PDF's text is
+  highlightable/selectable; if it isn't, the ATS can't read it either.
 - **One page.** A second page rarely gets read. If tailored content doesn't
   fit, cut the weakest bullet before shrinking fonts or margins.
 - **Standard fonts only**: Arial, Calibri, or Garamond. Anything else risks
@@ -49,7 +53,9 @@ something that does real work: a compressed, role-first description of the
 candidate. Aim for under 10 words. It should read like a slightly richer
 version of a LinkedIn headline. Good pattern: start with the job-role noun
 itself ("Senior Backend Engineer", "Front End Engineer"), then a phrase that
-signals depth or specialty.
+signals depth or specialty. Examples (each under 10 words):
+- "Senior Backend Engineer, 6 years scaling payments on Rails/Postgres"
+- "Front End Engineer, 4 years making high-traffic sites fast"
 
 The summary underneath is a maximum of ~50 words and must, in whatever
 order makes sense:
@@ -185,5 +191,19 @@ resume, not a restatement of it:
   never open the attached resume/PDF.
 - If the candidate is applying to more than one role at the same company,
   mention it — applying broadly at one employer can read as unfocused.
-  `resume_store.py app check-duplicate` can detect this automatically;
-  use it before finalizing a new application (see the main SKILL.md).
+   `resume_store.py app check-duplicate` can detect this automatically;
+   use it before finalizing a new application (see the main SKILL.md).
+
+## 14. Review tools (run before finalizing)
+
+- **Readability scan.** Paste the draft into an ATS scanner (e.g.
+  Resume Worded, AI Resume Judge) and fix parse errors before sending.
+  Tailor-check against the job description with a targeted-resume tool
+  where available.
+- **Plain-text test.** Copy the resume content into a plain-text file. If
+  bullets go missing, characters show wrong, or sections scramble, fix the
+  source — the ATS sees what the text file shows, not what Word renders.
+- **Keyword mirror check.** Confirm must-have job-description terms appear
+  verbatim at least once (full form, not just the abbreviation) and weight
+  frequency by their importance in the posting — without stuffing past
+  natural reading.

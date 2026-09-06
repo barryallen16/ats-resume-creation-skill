@@ -38,7 +38,10 @@ today's job description might be exactly what's needed for next month's.
      "grad_year": "...", "gpa": "...", "achievements": ["..."]}
   ],
   "projects": [
-    {"name": "...", "url": "...", "description": "..."}
+    {"name": "...", "url": "...", "description": "...",
+     "bullets": ["...", "..."]}   // bullets preferred: one "- " line each,
+                                   // same shape as experience bullets;
+                                   // description is the fallback paragraph
   ],
   "awards": [
     {"year": "...", "achievement": "...", "name": "..."}
@@ -74,7 +77,8 @@ specifically for one job description, matching what
   "experience": [ /* full job list, but each job's "bullets" trimmed down
                      to the 2-4 strongest/most relevant for this JD */ ],
   "education": [ /* usually copied as-is from profile.json */ ],
-  "projects": [ /* the 1-2 most relevant projects for this JD */ ],
+  "projects": [ /* the 1-2 most relevant projects for this JD; give each
+                 2-4 "bullets" shaped like experience bullets */ ],
   "awards": [ /* optional; omit the whole "awards" key or leave it an
                  empty list if nothing is relevant */ ],
   "section_order": [       // optional; defaults to the standard order

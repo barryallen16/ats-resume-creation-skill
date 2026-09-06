@@ -133,7 +133,7 @@ def add_contact_line(document, contact):
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     tight(p, before=0, after=8)
     run = p.add_run("  |  ".join(parts))
-    run.font.size = Pt(9.5)
+    run.font.size = Pt(10)
 
 
 def build_header(document, content):
@@ -171,8 +171,11 @@ def build_skills(document, content):
 
 
 def build_experience(document, content):
+    jobs = content.get("experience", [])
+    if not jobs:
+        return
     add_section_heading(document, "Work Experience")
-    for job in content.get("experience", []):
+    for job in jobs:
         left = f"{job['company']}, {job['location']} | {job['title']}"
         right = f"{job['start']} - {job['end']}"
         add_right_tab_line(document, left, right)
@@ -210,12 +213,19 @@ def build_projects(document, content):
         name_run.font.size = BODY_SIZE
         if proj.get("url"):
             url_run = p.add_run(f"  ({proj['url']})")
-            url_run.font.size = Pt(9.5)
+            url_run.font.size = Pt(10)
             url_run.italic = True
-        desc_p = document.add_paragraph()
-        tight(desc_p, before=0, after=4)
-        desc_run = desc_p.add_run(proj["description"])
-        desc_run.font.size = BODY_SIZE
+        bullets = proj.get("bullets") or []
+        if bullets:
+            for bullet in bullets:
+                add_bullet(document, bullet)
+            # breathing room after the last bullet before the next project
+            document.paragraphs[-1].paragraph_format.space_after = Pt(4)
+        elif proj.get("description"):
+            desc_p = document.add_paragraph()
+            tight(desc_p, before=0, after=4)
+            desc_run = desc_p.add_run(proj["description"])
+            desc_run.font.size = BODY_SIZE
 
 
 def build_awards(document, content):
