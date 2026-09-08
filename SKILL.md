@@ -123,6 +123,21 @@ python3 scripts/resume_store.py app update-status --id <id> --status applied
 Valid statuses: `drafted`, `applied`, `interviewing`, `offer`, `rejected`,
 `withdrawn`.
 
+### 5b. Sync to the Grey Matter web tracker
+
+After `app add` or `update-status`, push the changes to the candidate's
+web tracker (phone-visible at greymatter.isroot.in/tracker/):
+
+```bash
+python3 scripts/tracker_push.py                          # local API (default http://127.0.0.1:8080)
+python3 scripts/tracker_push.py --url https://greymatter.isroot.in   # VPS
+```
+
+It merges `applications_index.json` into the web tracker, keyed by
+application id — re-running is safe and updates statuses in place
+(never duplicates). Do this as the last step of any application
+workflow, after the status is final for this session.
+
 ### 6. List past applications, on request
 
 ```bash
@@ -172,4 +187,7 @@ shouldn't default to `./resume_data` (e.g. a fixed location per candidate).
   and, for PDF conversion, LibreOffice (`soffice`) on PATH.
 - `scripts/resume_store.py` — profile persistence (`profile show|update`)
   and application tracking (`app add|list|check-duplicate|update-status`).
+- `scripts/tracker_push.py` — syncs recorded applications to the Grey
+  Matter web tracker (`/tracker/`); stdlib-only, idempotent, run after
+  every `app add` / `update-status` (see section 5b).
   Pure Python + JSON files, no external services required.

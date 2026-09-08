@@ -64,6 +64,11 @@ openclaw skills install . --as resume-builder --global
 #    copy (or symlink) this folder into that tool's skills directory, e.g.
 cp -r . ~/.claude/skills/resume-builder
 
+#    Hermes Agent (Nous Research):
+#    copy (or symlink) this folder into Hermes skills directory:
+cp -r . ~/.hermes/skills/resume-builder
+#    (or configure in your Hermes workspace skills folder)
+
 # 5. Start a new agent session (skills are snapshotted at session start,
 #    so an already-open session won't see it) and try:
 #    "build me a resume for a Backend Engineer role at Acme Corp"

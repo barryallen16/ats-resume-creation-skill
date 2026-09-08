@@ -12,8 +12,14 @@ for "survives the ATS parse" first, "wins the 30-second human skim" second.
   Word/Docs output — Photoshop, design tools, and online builders produce
   layouts that parse badly or not at all. Always confirm the PDF's text is
   highlightable/selectable; if it isn't, the ATS can't read it either.
-- **One page.** A second page rarely gets read. If tailored content doesn't
-  fit, cut the weakest bullet before shrinking fonts or margins.
+- **Page budget: 1 page for <8 years, 2 pages permitted for 8+ years/Staff+.**
+  For students, early career, and mid-level candidates (<8 years), a strict
+  single page remains mandatory. For Staff+, Principal, Architects, or
+  candidates with 8+ years of deep experience, 2 pages is accepted and
+  often expected to demonstrate architectural scope and leadership. However,
+  if a second page is used, it must fill at least 60% of the page—never let an
+  awkward 2-3 line spillover happen. If tailored content overflows by just a few
+  lines, cut the weakest bullet rather than spilling over.
 - **Standard fonts only**: Arial, Calibri, or Garamond. Anything else risks
   the ATS mangling characters during parsing.
 - **10pt minimum** body text. Smaller is a common way candidates try to
@@ -97,15 +103,27 @@ for an interviewer to puncture in the first five minutes.
 Each job needs a header line with this information, in this order:
 company, location, title, and dates (MM/YYYY format, "Present" if current).
 
-Every bullet under a job should follow this shape:
+Every bullet under a job must follow the **2026 Grounded Engineering Formula**:
 
-> [What you did], resulting in [a quantified outcome]
+> **[Active Technical Verb]** + **[System Context & Challenge]** + **[Architecture / Tool Choice]** + **[Verifiable Outcome / Scale]**
 
-A bullet with a number in it (latency reduced X%, cost cut by $Y, N users
-served, team of Z people led) is dramatically stronger than the same bullet
-without one. When drafting content from a candidate's raw description of
-their work, actively probe for the number — "how much faster", "how many
-users", "how big was the team" — rather than writing a vague accomplishment.
+### Anti-"AI Slop" Guidelines (Critical for 2026):
+Recruiters and hiring managers in 2026 are inundated with generic AI-generated
+resumes using hollow metrics. Stand out by adhering to strict technical grounding:
+
+- **Banned generic AI filler verbs**: Do NOT use *"Leveraged"*, *"Spearheaded"*,
+  *"Orchestrated"*, *"Championed"*, *"Pioneered"*, or *"Utilized"*.
+- **Required engineering action verbs**: Use precise verbs that signal actual
+  technical work: *"Architected"*, *"Profiled"*, *"Refactored"*, *"Migrated"*,
+  *"Benchmarked"*, *"Decomposed"*, *"Hardened"*, *"Provisioned"*, *"Automated"*.
+- **Anchor with real engineering scale**: Prosaic claims ("boosted performance")
+  get rejected. Always anchor with concrete units:
+  - Throughput & latency: QPS, concurrent connections, P99/P95 latency in ms.
+  - Financial/Cost: AWS/GCP cloud spend reduced by $X/month, GPU hours cut.
+  - Data scale: Database volume (GB/TB), daily active records processed.
+  - Reliability: Error rate dropped from X% to Y%, uptime SLA achieved.
+- **Explain the "Why" / Architecture**: State *why* an architectural choice was
+  made (e.g. "decoupled billing via Kafka to eliminate synchronous database locks").
 
 List jobs in reverse chronological order (most recent first).
 
@@ -139,33 +157,48 @@ quantifiable:
 Skip this section entirely rather than padding it with low-relevance
 entries.
 
-## 10. Keyword optimization
+## 10. Keyword optimization & semantic intent (2026 AI screening)
 
-This is the step that most determines whether a resume clears the ATS
-ranking, not just the parse:
+Modern ATS platforms (Ashby AI, Eightfold, Greenhouse AI, Workday) now deploy
+vector embeddings and LLM screening agents that assess *semantic context and
+competency proximity*, rather than just counting string frequencies:
 
-- Read the target job description and extract the specific must-have and
-  nice-to-have skills/technologies/experience it names.
-- Work those same terms into Skills, and naturally into Work Experience
-  and Projects bullets, using language that closely mirrors the job
-  description's own phrasing rather than a rough synonym.
-- Spell out abbreviations at least once (e.g. "Amazon Web Services" rather
-  than only "AWS", "Google Cloud Platform" rather than only "GCP") since
-  some ATS keyword-match on the full term.
-- Weight how much a term shows up by how important it is in the job
-  description — a "must-have" listed first deserves more presence than a
-  "nice-to-have" buried in a long list.
-- Never keyword-stuff to the point that a sentence stops reading naturally
-  — a human reads this resume too, eventually.
+- **Contextual co-occurrence**: Do NOT merely list a cluster of 30 disconnected
+  keywords. The AI screener gives the highest weight to terms that co-occur
+  with concrete problem-solving in Work Experience bullets.
+- **Extract core tech stack + concepts**: Read the target job description to
+  identify both explicit tools (e.g. "PostgreSQL", "Kafka", "Go") and high-level
+  system concepts (e.g. "distributed consensus", "zero-downtime migrations",
+  "multi-tenant data isolation").
+- **Surface modern 2026 competencies**: Where present in the candidate's master
+  profile, actively highlight competencies prized in the 2026 market:
+  - **Cloud Cost & FinOps**: Cloud infrastructure optimization, AWS/GCP spend
+    reduction, container rightsizing.
+  - **AI & Data Systems**: Vector search (e.g. pgvector, Pinecone), model
+    inference latency optimization, agentic workflows, embeddings, data pipelines.
+  - **Modern Reliability**: OpenTelemetry, SLO/SLA management, automated canary
+    deployments.
+- **Spell out abbreviations once**: Maintain ATS safety by spelling out key
+  acronyms at least once (e.g. "Amazon Web Services (AWS)", "Google Cloud Platform (GCP)").
+- **Never keyword-stuff**: If a human recruiter detects keyword stuffing during
+  the 15-second skim, or if the LLM screener detects ungrounded buzzword lists,
+  the resume is down-ranked.
 
-## 11. Less is more
+## 11. Less is more & page budget control
 
-Prioritizing a candidate's single strongest 2–3 accomplishments per job
-over a long list of average ones produces a stronger resume every time.
-When given a large raw history of everything someone has done (which is
-exactly what the persistent profile is for — see the main SKILL.md), the
-job of tailoring a resume is picking the best-fitting subset for *this*
-job description, not including everything.
+Prioritizing a candidate's single strongest 2–4 accomplishments per job
+over a long list of average ones produces a stronger resume every time:
+
+- **Strict 1-page budget for <8 years of experience**: Early and mid-career
+  resumes must fit on one page. Cut the weakest bullet before shrinking fonts.
+- **2-page budget for 8+ years / Staff+ / Engineering Leadership**: For
+  candidates with 8+ years of deep architecture or management history, a
+  2-page resume is acceptable and often preferred to show scope. When targeting
+  2 pages, page 2 must fill at least 60% of the page—never leave an awkward
+  2-line overflow.
+- When given a large master history from `profile.json`, the agent's job is
+  curation: selecting the highest-impact 2–4 bullets per role tailored to
+  this specific job description.
 
 ## 12. Cover letter (optional companion output)
 

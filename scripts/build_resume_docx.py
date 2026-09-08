@@ -28,6 +28,7 @@ from docx.shared import Inches, Pt
 from docx.enum.text import WD_TAB_ALIGNMENT, WD_ALIGN_PARAGRAPH
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
+from docx.opc.constants import RELATIONSHIP_TYPE
 
 BODY_FONT = "Calibri"          # Arial / Calibri / Garamond are the only ATS-safe choices
 BODY_SIZE = Pt(10.5)           # never go below 10pt
@@ -118,22 +119,65 @@ def add_right_tab_line(document, left_text, right_text, bold_left=True):
     return p
 
 
+def add_hyperlink(paragraph, url, text, color="0B5394", underline=True):
+    """Insert a native clickable hyperlink into a python-docx paragraph.
+    Allows human recruiters in 2026 to click directly through to LinkedIn,
+    GitHub, or live project demos without breaking ATS parsers."""
+    part = paragraph.part
+    r_id = part.relate_to(url, RELATIONSHIP_TYPE.HYPERLINK, is_external=True)
+
+    hyperlink = OxmlElement("w:hyperlink")
+    hyperlink.set(qn("r:id"), r_id)
+
+    new_run = OxmlElement("w:r")
+    rPr = OxmlElement("w:rPr")
+
+    if color:
+        c = OxmlElement("w:color")
+        c.set(qn("w:val"), color)
+        rPr.append(c)
+
+    if underline:
+        u = OxmlElement("w:u")
+        u.set(qn("w:val"), "single")
+        rPr.append(u)
+
+    new_run.append(rPr)
+    new_run.text = text
+    hyperlink.append(new_run)
+    paragraph._p.append(hyperlink)
+    return hyperlink
+
+
 def add_contact_line(document, contact):
-    parts = []
-    if contact.get("location"):
-        parts.append(contact["location"])
-    if contact.get("phone"):
-        parts.append(contact["phone"])
-    if contact.get("email"):
-        parts.append(contact["email"])
-    for key in ("linkedin", "github", "website"):
-        if contact.get(key):
-            parts.append(contact[key])
     p = document.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     tight(p, before=0, after=8)
-    run = p.add_run("  |  ".join(parts))
-    run.font.size = Pt(10)
+
+    entries = []
+    if contact.get("location"):
+        entries.append(("text", contact["location"]))
+    if contact.get("phone"):
+        entries.append(("text", contact["phone"]))
+    if contact.get("email"):
+        email = contact["email"]
+        target = f"mailto:{email}" if not email.startswith("mailto:") else email
+        entries.append(("link", email, target))
+    for key in ("linkedin", "github", "website"):
+        if contact.get(key):
+            raw = contact[key].strip()
+            target = raw if raw.startswith(("http://", "https://")) else f"https://{raw}"
+            entries.append(("link", raw, target))
+
+    for idx, item in enumerate(entries):
+        if idx > 0:
+            sep = p.add_run("  |  ")
+            sep.font.size = Pt(10)
+        if item[0] == "text":
+            run = p.add_run(item[1])
+            run.font.size = Pt(10)
+        elif item[0] == "link":
+            add_hyperlink(p, item[2], item[1], color="0B5394", underline=True)
 
 
 def build_header(document, content):
@@ -212,9 +256,13 @@ def build_projects(document, content):
         name_run.bold = True
         name_run.font.size = BODY_SIZE
         if proj.get("url"):
-            url_run = p.add_run(f"  ({proj['url']})")
-            url_run.font.size = Pt(10)
-            url_run.italic = True
+            raw_url = proj["url"].strip()
+            target_url = raw_url if raw_url.startswith(("http://", "https://")) else f"https://{raw_url}"
+            open_run = p.add_run("  (")
+            open_run.font.size = Pt(10)
+            add_hyperlink(p, target_url, raw_url, color="0B5394", underline=True)
+            close_run = p.add_run(")")
+            close_run.font.size = Pt(10)
         bullets = proj.get("bullets") or []
         if bullets:
             for bullet in bullets:

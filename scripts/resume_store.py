@@ -254,19 +254,56 @@ def cmd_app_list(args):
               f"{row['role']:<28} {row['status']}")
 
 
+def normalize_tokens(text):
+    text = re.sub(r"[^\w\s]", " ", text.lower())
+    tokens = set(text.split())
+    noise = {"inc", "corp", "corporation", "llc", "ltd", "company", "co", "the", "a", "an", "and", "or"}
+    return tokens - noise
+
+
+def role_similarity(role1, role2):
+    t1 = normalize_tokens(role1)
+    t2 = normalize_tokens(role2)
+    if not t1 or not t2:
+        return 0.0
+    overlap = len(t1 & t2)
+    return overlap / min(len(t1), len(t2))
+
+
 def cmd_app_check_duplicate(args):
     index = load_json(applications_index_path(args.data_dir), [])
-    matches = [
-        row for row in index
-        if row["company"].strip().lower() == args.company.strip().lower()
-        and row["role"].strip().lower() == args.role.strip().lower()
-    ]
-    if matches:
-        print(f"DUPLICATE: {len(matches)} existing application(s) for "
+    target_comp_tokens = normalize_tokens(args.company)
+    target_comp_str = args.company.strip().lower()
+
+    exact_matches = []
+    near_matches = []
+
+    for row in index:
+        row_comp_str = row["company"].strip().lower()
+        row_comp_tokens = normalize_tokens(row["company"])
+
+        # Check company match (exact string, or token match)
+        same_company = (row_comp_str == target_comp_str or 
+                        (target_comp_tokens and target_comp_tokens == row_comp_tokens))
+
+        if same_company:
+            if row["role"].strip().lower() == args.role.strip().lower():
+                exact_matches.append(row)
+            elif role_similarity(row["role"], args.role) >= 0.6:
+                near_matches.append(row)
+
+    if exact_matches:
+        print(f"EXACT DUPLICATE: {len(exact_matches)} existing application(s) for "
               f"{args.company} / {args.role}:")
-        for row in matches:
+        for row in exact_matches:
             print(f"  - {row['id']} (status: {row['status']}, created {row['date_created']})")
         sys.exit(1)
+    elif near_matches:
+        print(f"NEAR-MATCH WARNING: Found {len(near_matches)} similar application(s) at {args.company}:")
+        for row in near_matches:
+            print(f"  - Applied for '{row['role']}' [{row['id']}] (status: {row['status']}, created {row['date_created']})")
+        print("Note: Applying to very similar roles at the same company can look unfocused.")
+        sys.exit(2)
     else:
         print("No existing application found for this company + role.")
         sys.exit(0)
@@ -293,20 +330,22 @@ def cmd_app_update_status(args):
 # --------------------------------------------------------------------- cli
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--data-dir", default=DEFAULT_DATA_DIR, help="Base directory for persistent data")
+    base_parser = argparse.ArgumentParser(add_help=False)
+    base_parser.add_argument("--data-dir", default=argparse.SUPPRESS, help="Base directory for persistent data")
+
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter, parents=[base_parser])
     sub = parser.add_subparsers(dest="entity", required=True)
 
-    profile_p = sub.add_parser("profile")
+    profile_p = sub.add_parser("profile", parents=[base_parser])
     profile_sub = profile_p.add_subparsers(dest="action", required=True)
-    profile_sub.add_parser("show")
-    up = profile_sub.add_parser("update")
+    profile_sub.add_parser("show", parents=[base_parser])
+    up = profile_sub.add_parser("update", parents=[base_parser])
     up.add_argument("--json", required=True, help="Path to a JSON fragment to merge into the profile")
 
-    app_p = sub.add_parser("app")
+    app_p = sub.add_parser("app", parents=[base_parser])
     app_sub = app_p.add_subparsers(dest="action", required=True)
 
-    add_p = app_sub.add_parser("add")
+    add_p = app_sub.add_parser("add", parents=[base_parser])
     add_p.add_argument("--company", required=True)
     add_p.add_argument("--role", required=True)
     add_p.add_argument("--jd-file", required=True, help="Path to the job description text, or '-' for stdin")
@@ -315,20 +354,21 @@ def main():
     add_p.add_argument("--cover-letter")
     add_p.add_argument("--status", default="drafted", choices=sorted(VALID_STATUSES))
 
-    list_p = app_sub.add_parser("list")
+    list_p = app_sub.add_parser("list", parents=[base_parser])
     list_p.add_argument("--company")
     list_p.add_argument("--role")
     list_p.add_argument("--status", choices=sorted(VALID_STATUSES))
 
-    dup_p = app_sub.add_parser("check-duplicate")
+    dup_p = app_sub.add_parser("check-duplicate", parents=[base_parser])
     dup_p.add_argument("--company", required=True)
     dup_p.add_argument("--role", required=True)
 
-    status_p = app_sub.add_parser("update-status")
+    status_p = app_sub.add_parser("update-status", parents=[base_parser])
     status_p.add_argument("--id", required=True)
     status_p.add_argument("--status", required=True)
 
     args = parser.parse_args()
+    args.data_dir = getattr(args, "data_dir", DEFAULT_DATA_DIR)
 
     if args.entity == "profile":
         ensure_dirs(args.data_dir)
