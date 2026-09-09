@@ -32,6 +32,7 @@ import json
 import os
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 
 KEY = "tracker-apps-v1"
@@ -74,6 +75,23 @@ def kv_put(base, apps):
             sys.exit(f"PUT failed: HTTP {r.status}")
 
 
+def file_put(base, name, path):
+    """Upload one resume file to /api/files. Returns name on success, None (with warning) otherwise."""
+    try:
+        with open(path, "rb") as f:
+            data = f.read()
+        if len(data) > 10 * 1024 * 1024:
+            print(f"Skip {path}: over 10MB, not uploaded.")
+            return None
+        req = urllib.request.Request(
+            f"{base}/api/files/{urllib.parse.quote(name)}", data=data, method="PUT")
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return name if r.status == 200 else None
+    except Exception as e:
+        print(f"Warning: could not upload {path} ({e}).")
+        return None
+
+
 def to_epoch_ms(iso):
     try:
         return int(datetime.datetime.fromisoformat(iso).timestamp() * 1000)
@@ -114,6 +132,25 @@ def main():
             "notes": rec.get("notes", "ats-resume-skill"),
             "created": to_epoch_ms(rec.get("date_created", "")),
         }
+        # Upload the actual resume files so the tracker can view/download them
+        files = []
+        for src, suffix in ((rec.get("resume_pdf_path"), ".pdf"),
+                            (rec.get("resume_docx_path"), ".docx")):
+            if src and os.path.exists(src):
+                n = file_put(args.url, rec["id"] + suffix, src)
+                if n:
+                    files.append(n)
+        cover = rec.get("cover_letter_path")
+        if cover and os.path.exists(cover):
+            ext = os.path.splitext(cover)[1].lower()
+            if ext in (".pdf", ".docx"):
+                n = file_put(args.url, rec["id"] + "-cover" + ext, cover)
+                if n:
+                    files.append(n)
+        if files:
+            entry["files"] = files
+        elif rec["id"] in by_id and by_id[rec["id"]].get("files"):
+            entry["files"] = by_id[rec["id"]]["files"]  # local copy gone, keep server link
         if rec["id"] in by_id:
             by_id[rec["id"]].update(entry)
             updated += 1

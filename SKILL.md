@@ -135,7 +135,9 @@ python3 scripts/tracker_push.py --url https://greymatter.isroot.in   # VPS
 
 It merges `applications_index.json` into the web tracker, keyed by
 application id — re-running is safe and updates statuses in place
-(never duplicates). Do this as the last step of any application
+(never duplicates). It also uploads each application's resume PDF/DOCX
+(as `<id>.pdf` / `<id>.docx`) so they are viewable on the tracker row
+and under Files. Do this as the last step of any application
 workflow, after the status is final for this session.
 
 ### 6. List past applications, on request
