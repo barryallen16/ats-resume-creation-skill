@@ -99,6 +99,15 @@ def to_epoch_ms(iso):
         return int(datetime.datetime.now().timestamp() * 1000)
 
 
+def read_text(path):
+    """Small text file (JD, strategy, gaps, changelog) or '' if missing."""
+    try:
+        with open(path or "", encoding="utf-8") as f:
+            return f.read().strip()
+    except (OSError, UnicodeDecodeError):
+        return ""
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -131,7 +140,19 @@ def main():
             "followup": rec.get("followup", ""),
             "notes": rec.get("notes", "ats-resume-skill"),
             "created": to_epoch_ms(rec.get("date_created", "")),
+            "jd": read_text(rec.get("job_description_path")),
         }
+        for key, path_key in (("strategy", "strategy_path"),
+                              ("gaps", "gaps_path"),
+                              ("changelog", "changelog_path")):
+            text = read_text(rec.get(path_key))
+            if text:
+                entry[key] = text
+        if rec["id"] in by_id:
+            # local copy gone (e.g. gitignored data dir) — keep server text
+            for key in ("jd", "strategy", "gaps", "changelog"):
+                if not entry.get(key) and by_id[rec["id"]].get(key):
+                    entry[key] = by_id[rec["id"]][key]
         # Upload the actual resume files so the tracker can view/download them
         files = []
         for src, suffix in ((rec.get("resume_pdf_path"), ".pdf"),

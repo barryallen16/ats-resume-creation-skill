@@ -233,6 +233,9 @@ def cmd_app_add(args):
     resume_docx = copy_into(args.resume_docx, "resume.docx")
     resume_pdf = copy_into(args.resume_pdf, "resume.pdf")
     cover_letter = copy_into(args.cover_letter, os.path.basename(args.cover_letter)) if args.cover_letter else None
+    strategy = copy_into(args.strategy_file, "strategy.txt") if args.strategy_file else None
+    gaps = copy_into(args.gaps_file, "gaps.txt") if args.gaps_file else None
+    changelog = copy_into(args.changelog_file, "changelog.txt") if args.changelog_file else None
 
     record = {
         "id": app_id,
@@ -243,6 +246,9 @@ def cmd_app_add(args):
         "resume_docx_path": resume_docx,
         "resume_pdf_path": resume_pdf,
         "cover_letter_path": cover_letter,
+        "strategy_path": strategy,
+        "gaps_path": gaps,
+        "changelog_path": changelog,
         "status": args.status,
     }
 
@@ -365,6 +371,9 @@ def main():
     add_p.add_argument("--resume-docx", required=True)
     add_p.add_argument("--resume-pdf")
     add_p.add_argument("--cover-letter")
+    add_p.add_argument("--strategy-file", help="JD strategy note (text) — shown on the tracker row")
+    add_p.add_argument("--gaps-file", help="Gap summary (text) — shown on the tracker row")
+    add_p.add_argument("--changelog-file", help="Change log (text) — shown on the tracker row")
     add_p.add_argument("--status", default="drafted", choices=sorted(VALID_STATUSES))
 
     list_p = app_sub.add_parser("list", parents=[base_parser])

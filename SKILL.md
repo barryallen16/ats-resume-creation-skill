@@ -139,6 +139,8 @@ python3 scripts/resume_store.py app add \
   --company "Acme Corp" --role "Backend Engineer" \
   --jd-file job_description.txt \
   --resume-docx resume.docx --resume-pdf resume.pdf \
+  --strategy-file strategy.txt --gaps-file gaps.txt \
+  --changelog-file changelog.txt \
   --status drafted
 ```
 

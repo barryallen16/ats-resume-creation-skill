@@ -4,3 +4,8 @@ job-search/
 raw/
 opencode.json
 misc/
+__pycache__/
+# Personal / unpublishable artifacts (never commit: contact info, unpublished work)
+Jayadithya_R_Resume.*
+1816_paper.pdf
+main.tex
