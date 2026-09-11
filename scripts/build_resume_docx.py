@@ -369,77 +369,103 @@ def default_resume_stem(contact_name):
     return f"{tokens[0]}_{tokens[-1]}_Resume"
 
 
-def build_markdown(content):
-    """Version-control-friendly markdown source of the same resume.
-
-    Mirrors the docx section order and content one-to-one so diffs show
-    what actually changed between tailored versions. Not submitted to
-    ATS portals — the docx/PDF remain the deliverables.
-    """
-    lines = []
-    contact = content.get("contact", {})
-    lines.append(f"# {contact.get('name', '')}")
-    bits = [contact.get(k, "") for k in ("location", "phone", "email", "linkedin", "github", "website")]
-    lines.append(" | ".join(b for b in bits if b))
-    lines.append("")
-    lines.append(f"## {content.get('headline', '')}")
-    lines.append("")
-    lines.append(content.get("summary", ""))
-    lines.append("")
-    lines.append("## Skills")
-    lines.append("")
+def _md_skills(content):
+    out = ["## Skills", ""]
     for row in content.get("skills", []):
-        lines.append(f"- **{row.get('category', '')}:** {' | '.join(row.get('items', []))}")
-    lines.append("")
-    lines.append("## Work Experience")
-    lines.append("")
+        out.append(f"- **{row.get('category', '')}:** {' | '.join(row.get('items', []))}")
+    return out
+
+
+def _md_experience(content):
+    out = ["## Work Experience", ""]
     for job in content.get("experience", []):
-        lines.append(
+        out.append(
             f"### {job.get('company', '')}, {job.get('location', '')} | "
             f"{job.get('title', '')} | {job.get('start', '')} - {job.get('end', '')}"
         )
-        lines.append("")
+        out.append("")
         for bullet in job.get("bullets", []):
-            lines.append(f"- {bullet}")
-        lines.append("")
-    lines.append("## Education")
-    lines.append("")
+            out.append(f"- {bullet}")
+        out.append("")
+    return out
+
+
+def _md_education(content):
+    out = ["## Education", ""]
     for edu in content.get("education", []):
-        lines.append(
+        out.append(
             f"### {edu.get('degree', '')}, {edu.get('school', '')}, {edu.get('location', '')} | "
             f"{edu.get('grad_year', '')}"
         )
-        lines.append("")
+        out.append("")
         details = []
         if edu.get("gpa"):
             details.append(f"GPA: {edu['gpa']}")
         details.extend(edu.get("achievements", []))
         if details:
-            lines.append(f"{' | '.join(details)}")
-            lines.append("")
+            out.append(f"{' | '.join(details)}")
+            out.append("")
+    return out
+
+
+def _md_projects(content):
     projects = content.get("projects", [])
-    if projects:
-        lines.append("## Projects")
-        lines.append("")
-        for proj in projects:
-            title = f"### {proj.get('name', '')}"
-            if proj.get("url"):
-                title += f" ({proj['url']})"
-            lines.append(title)
-            lines.append("")
-            bullets = list(proj.get("bullets") or [])
-            if not bullets and proj.get("description"):
-                bullets = split_description_to_bullets(proj["description"])
-            for bullet in bullets:
-                lines.append(f"- {bullet}")
-            lines.append("")
+    if not projects:
+        return []
+    out = ["## Projects", ""]
+    for proj in projects:
+        title = f"### {proj.get('name', '')}"
+        if proj.get("url"):
+            title += f" ({proj['url']})"
+        out.append(title)
+        out.append("")
+        bullets = list(proj.get("bullets") or [])
+        if not bullets and proj.get("description"):
+            bullets = split_description_to_bullets(proj["description"])
+        for bullet in bullets:
+            out.append(f"- {bullet}")
+        out.append("")
+    return out
+
+
+def _md_awards(content):
     awards = content.get("awards", [])
-    if awards:
-        lines.append("## Awards, Accolades and Certifications")
-        lines.append("")
-        for award in awards:
-            lines.append(f"- {award.get('year', '')} | {award.get('achievement', '')} | {award.get('name', '')}")
-        lines.append("")
+    if not awards:
+        return []
+    out = ["## Awards, Accolades and Certifications", ""]
+    for award in awards:
+        out.append(f"- {award.get('year', '')} | {award.get('achievement', '')} | {award.get('name', '')}")
+    return out
+
+
+MD_BUILDERS = {
+    "headline_summary": lambda c: ["## " + c.get("headline", ""), "", c.get("summary", "")],
+    "skills": _md_skills,
+    "experience": _md_experience,
+    "education": _md_education,
+    "projects": _md_projects,
+    "awards": _md_awards,
+}
+
+
+def build_markdown(content):
+    """Version-control-friendly markdown source of the same resume.
+
+    Follows content["section_order"] like build_resume, so diffs reflect
+    the docx. Not submitted to ATS portals — docx/PDF are the deliverables.
+    """
+    contact = content.get("contact", {})
+    lines = [f"# {contact.get('name', '')}"]
+    bits = [contact.get(k, "") for k in ("location", "phone", "email", "linkedin", "github", "website")]
+    lines.append(" | ".join(b for b in bits if b))
+    lines.append("")
+    for key in content.get("section_order", DEFAULT_ORDER):
+        if key in ("contact",):
+            continue
+        builder = MD_BUILDERS.get(key)
+        if builder:
+            lines.extend(builder(content))
+            lines.append("")
     return "\n".join(lines).rstrip() + "\n"
 
 

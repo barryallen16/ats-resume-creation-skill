@@ -63,13 +63,8 @@ ABBREV_PAIRS = [
 TOKEN_RE = re.compile(r"[A-Za-z][A-Za-z0-9]*(?:[.+_#/-][A-Za-z0-9]+)*\+*")
 
 
-def load_text(path):
-    with open(path, "r", encoding="utf-8") as f:
-        return f.read()
-
-
 def tokenize(text):
-    return [t for t in TOKEN_RE.findall(text)]
+    return TOKEN_RE.findall(text)
 
 
 def resume_blob(content):
@@ -121,7 +116,8 @@ def main():
 
     with open(args.content, "r", encoding="utf-8") as f:
         content = json.load(f)
-    jd_text = load_text(args.jd)
+    with open(args.jd, "r", encoding="utf-8") as f:
+        jd_text = f.read()
     blob = resume_blob(content)
     blob_lower = blob.lower()
     jd_lower = jd_text.lower()
@@ -141,15 +137,13 @@ def main():
         key=lambda kv: (-kv[1], kv[0]),
     )[:40]
 
-    missing, underrep, present = [], [], []
+    missing, underrep = [], []
     for term, jd_count in candidates:
         rc = count_occurrences(blob_lower, term)
         if rc == 0:
             missing.append((term, jd_count))
         elif jd_count >= 3 and rc == 1:
             underrep.append((term, jd_count, rc))
-        else:
-            present.append((term, jd_count, rc))
 
     # --- Abbreviation / full-form check ---
     abbrev_notes = []

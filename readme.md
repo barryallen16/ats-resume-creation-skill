@@ -28,6 +28,7 @@ resume-builder/
 │   └── data_schemas.md               # JSON shapes for profile/content/tracker
 └── scripts/
     ├── build_resume_docx.py          # generates ATS-safe .docx, converts to PDF
+    ├── keyword_audit.py              # pre-submission JD keyword audit (no scores)
     └── resume_store.py               # profile persistence + job-application tracking CLI
 ```
 
