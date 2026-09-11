@@ -30,6 +30,15 @@ python3 scripts/build_resume_docx.py --content resume_content.json --out resume.
 # e.g. Jane_Doe_Resume.pdf — the human-friendly filename to submit to
 # ATS portals / recruiters. The slug+hash folder under resume_data/ is
 # internal tracking only, never the submission filename.
+# Add --md for a version-control-friendly markdown source (resume.md)
+# mirroring the docx — useful for diffs, never submitted to portals.
+```
+
+Run the keyword audit before visual verification (advisory findings, never
+a numeric score):
+
+```bash
+python3 scripts/keyword_audit.py --content resume_content.json --jd job_description.txt
 ```
 
 This writes `resume.docx` next to it, then converts it to `resume.pdf` via

@@ -86,6 +86,25 @@ subset of `profile.json` for this job description. This is the step where
 judgment matters most: which 2-4 bullets per job are the strongest fit,
 which projects to surface, how to reorder skills.
 
+Sequencing rule: do NOT draft a single bullet until JD analysis and
+strategy are written down (even briefly):
+- **JD analysis:** required vs preferred skills, top keywords/concepts,
+  seniority signal, team structure if stated, domain language.
+- **Strategy:** top 3 strengths to lead with, what to downplay or suppress
+  (see `excluded_skills`), `section_order` per seniority table, page target.
+- **Content + humanization:** draft bullets (zero-fabrication policy:
+  trace every number to the profile or flag Verify), then run the
+  humanization checklist in `resume_writing_rules.md` section 6.
+
+Deliver two short artifacts with every resume (chat or markdown file):
+- **Gap summary:** honest DEAL-BREAKER / SIGNIFICANT / MINOR gaps the
+  resume cannot fix. E.g. "JD requires Kubernetes — zero K8s in profile.
+  Highlighted Docker as closest proxy; study K8s before interview." Never
+  invent experience to close a gap; suggest cover-letter framing instead.
+- **Change log:** every rewritten bullet / keyword injection with reason
+  plus confidence (`confirmed` from profile vs `verify this number` vs
+  `quantification opportunity`). The candidate owns every number.
+
 ### 4. Generate the docx, then the PDF
 
 Read `references/docx_creation.md` for the full procedure and the ATS
@@ -96,11 +115,20 @@ python3 scripts/build_resume_docx.py --content resume_content.json --out resume.
 # --out omitted: defaults to {First}_{Last}_Resume.docx (+ .pdf), e.g.
 # Jane_Doe_Resume.pdf — use that friendly name for the actual submission.
 # The slug+hash folder under resume_data/applications/ is internal tracking.
+# Add --md for a version-control-friendly markdown source next to the docx.
 ```
 
-Always visually verify the rendered PDF (procedure in
-`references/docx_creation.md`) before treating it as final — confirm it's
-exactly one page and nothing is cut off.
+Run the deterministic keyword audit before treating the draft as final
+(audit, never a fake 0-100 score):
+
+```bash
+python3 scripts/keyword_audit.py --content resume_content.json --jd job_description.txt
+```
+
+Fix genuine gaps by grounding terms in real experience — never paste
+keywords the candidate doesn't have. Then visually verify the rendered
+PDF (procedure in `references/docx_creation.md`) before treating it as
+final — confirm it's exactly one page and nothing is cut off.
 
 ### 5. Record the application
 
@@ -188,8 +216,11 @@ shouldn't default to `./resume_data` (e.g. a fixed location per candidate).
 ## Scripts
 
 - `scripts/build_resume_docx.py` — turns a `resume_content.json` into
-  `resume.docx` (and `resume.pdf` with `--pdf`). Requires `python-docx`
-  and, for PDF conversion, LibreOffice (`soffice`) on PATH.
+  `resume.docx` (and `resume.pdf` with `--pdf`, `resume.md` with `--md`).
+  Requires `python-docx` and, for PDF conversion, LibreOffice (`soffice`) on PATH.
+- `scripts/keyword_audit.py` — stdlib-only pre-submission audit: JD terms
+  missing/underrepresented in the resume, stuffing-risk flags, and
+  excluded-skill leaks. Reports findings, never a numeric "ATS score".
 - `scripts/resume_store.py` — profile persistence (`profile show|update`)
   and application tracking (`app add|list|check-duplicate|update-status`).
 - `scripts/tracker_push.py` — syncs recorded applications to the Grey

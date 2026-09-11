@@ -49,7 +49,8 @@ EMPTY_PROFILE = {
     "headline": "",
     "summary": "",
     "skills": [],       # [{"category": str, "items": [str]}]
-    "experience": [],   # [{"company","location","title","start","end","bullets":[str]}]
+    "excluded_skills": [],  # [str] legacy tech kept for history, suppressed in tailoring
+    "experience": [],   # [{"company","location","title","start","end","bullets":[str],"agent_notes":str}]
     "education": [],    # [{"degree","school","location","grad_year","gpa","achievements":[str]}]
     "projects": [],     # [{"name","url","description"}]
     "awards": [],       # [{"year","achievement","name"}]
@@ -137,6 +138,11 @@ def merge_list_section(existing, incoming, key_fields, list_fields=()):
             for field, value in new_entry.items():
                 if field in list_fields:
                     target[field] = dedupe_preserve_order(target.get(field, []) + value)
+                elif field == "agent_notes":
+                    # Binding scope note: latest non-empty value wins;
+                    # missing/empty incoming leaves the stored note untouched.
+                    if isinstance(value, str) and value.strip():
+                        target[field] = value
                 else:
                     target[field] = value
         else:
@@ -155,6 +161,10 @@ def merge_profile(existing, incoming):
         merged["summary"] = incoming["summary"]
     if incoming.get("skills"):
         merged["skills"] = merge_skills(merged.get("skills", []), incoming["skills"])
+    if incoming.get("excluded_skills"):
+        merged["excluded_skills"] = dedupe_preserve_order(
+            merged.get("excluded_skills", []) + incoming["excluded_skills"]
+        )
     if incoming.get("experience"):
         merged["experience"] = merge_list_section(
             merged.get("experience", []), incoming["experience"],

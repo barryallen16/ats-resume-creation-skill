@@ -25,12 +25,18 @@ today's job description might be exactly what's needed for next month's.
   "skills": [
     {"category": "Languages", "items": ["Java", "Go", "..."]}
   ],
+  "excluded_skills": ["jQuery", "SVN"],  // legacy tech kept for history but
+                                         // suppressed during tailoring unless
+                                         // the JD explicitly asks for it
   "experience": [
     {
       "company": "...", "location": "...", "title": "...",
       "start": "MM/YYYY", "end": "MM/YYYY or Present",
-      "bullets": ["...", "..."]   // keep ALL known bullets for this job here,
-                                   // even ones a past resume didn't use
+      "bullets": ["...", "..."],  // keep ALL known bullets for this job here,
+                                  // even ones a past resume didn't use
+      "agent_notes": "..."        // optional binding scope note, e.g.
+                                  // "frontend only — coworker did backend";
+                                  // never claim beyond what notes allow
     }
   ],
   "education": [
@@ -39,12 +45,14 @@ today's job description might be exactly what's needed for next month's.
   ],
   "projects": [
     {"name": "...", "url": "...", "description": "...",
-     "bullets": ["...", "..."]}   // bullets REQUIRED for resume_content.json:
-                                   // 2-4 achievement bullets, same shape as
-                                   // experience bullets (see writing rules §8);
-                                   // "description" is legacy input only — the
-                                   // docx script auto-splits it into bullets
-                                   // as a fallback, but always author bullets
+     "bullets": ["...", "..."],   // bullets REQUIRED for resume_content.json:
+                                  // 2-4 achievement bullets, same shape as
+                                  // experience bullets (see writing rules §8);
+                                  // "description" is legacy input only — the
+                                  // docx script auto-splits it into bullets
+                                  // as a fallback, but always author bullets
+     "agent_notes": "..."}        // optional binding scope note, same
+                                  // contract as experience agent_notes
   ],
   "awards": [
     {"year": "...", "achievement": "...", "name": "..."}
@@ -58,7 +66,10 @@ Update it incrementally with `resume_store.py profile update --json <file>`
 entries by (company, title, start date), education by (school, degree),
 projects by (name), and awards by (name, year); bullets/achievements are
 unioned rather than replaced, so re-running an update never loses
-previously recorded accomplishments.
+previously recorded accomplishments. `excluded_skills` is unioned the same
+way. `agent_notes` is overwritten with the latest non-empty value (notes
+are instructions, not history) — an empty/missing incoming note leaves the
+stored note untouched.
 
 ## `resume_content.json` — one tailored resume's worth of content
 

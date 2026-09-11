@@ -52,6 +52,19 @@ recognize standard headings, and deviating (e.g. "My Journey" instead of
 7. **Awards, Accolades and Certifications** (optional — only include if
    there's something genuinely relevant to show)
 
+Set `section_order` from the JD's seniority signal (don't draft content
+before deciding this — see sequencing rule in SKILL.md):
+
+| JD signal | Section order (after contact + headline/summary) |
+|---|---|
+| New Grad / Intern / <3 years | Skills, Education, Projects, Work Experience, Awards |
+| Mid-level / default | Skills, Work Experience, Education, Projects, Awards |
+| Senior / Staff / Principal / 8+ years | Skills, Work Experience, Projects (architecture-heavy first), Education, Awards |
+
+When the company is unfamiliar, one optional line of domain-language
+mapping (company KPIs → candidate vocabulary, e.g. ARR, ROAS) is enough —
+never invent experience to match it.
+
 ## 3. Writing the headline + summary
 
 The headline replaces the boring "Professional Summary" label with
@@ -98,6 +111,10 @@ Only include a language/technology fluency claim ("10,000+ lines of Java")
 if it's genuinely impressive and verifiable — an empty boast here is easy
 for an interviewer to puncture in the first five minutes.
 
+Respect `excluded_skills` from the profile (see `data_schemas.md`): legacy
+tech kept for history (e.g. jQuery, SVN, PHP 5) must be suppressed during
+tailoring for modern JDs unless the posting explicitly asks for it.
+
 ## 6. Work experience
 
 Each job needs a header line with this information, in this order:
@@ -110,12 +127,33 @@ Every bullet under a job must follow the **2026 Grounded Engineering Formula**:
 
 > **[Active Technical Verb]** + **[System Context & Challenge]** + **[Architecture / Tool Choice]** + **[Verifiable Outcome / Scale]**
 
+### Zero Fabrication Policy (hard constraint)
+
+Never invent numbers, tools, scope, or ownership to make a bullet stronger.
+Every metric must trace to `profile.json` or to an explicit user
+confirmation in this session. If a bullet lacks a metric, do NOT polish a
+fake one — flag it as a **Quantification Opportunity** or **Verify this
+number** in the change log (see SKILL.md) and keep the weaker-but-true
+wording on the resume.
+
+When the candidate can't recall exact numbers, ask with these safe
+templates (user must confirm before use):
+- **Minimum bound:** "Processed 500+ records daily"
+- **Range:** "Saved 10-20 hours weekly"
+- **Share of activity:** "Managed ~40% of the team's active accounts"
+
+Treat per-job/project `agent_notes` in the profile as binding scope
+limits (e.g. "frontend only — coworker did backend"). Never expand
+ownership beyond what the notes allow.
+
 ### Anti-"AI Slop" Guidelines (Critical for 2026):
 Recruiters and hiring managers in 2026 are inundated with generic AI-generated
 resumes using hollow metrics. Stand out by adhering to strict technical grounding:
 
 - **Banned generic AI filler verbs**: Do NOT use *"Leveraged"*, *"Spearheaded"*,
-  *"Orchestrated"*, *"Championed"*, *"Pioneered"*, or *"Utilized"*.
+  *"Orchestrated"*, *"Championed"*, *"Pioneered"*, or *"Utilized"*. Also avoid
+  robotic corporate speak: *"delve"*, *"tapestry"*, *"multifaceted"*,
+  *"game-changer"*, *"cutting-edge"* (unless quoting the JD).
 - **Required engineering action verbs**: Use precise verbs that signal actual
   technical work: *"Architected"*, *"Profiled"*, *"Refactored"*, *"Migrated"*,
   *"Benchmarked"*, *"Decomposed"*, *"Hardened"*, *"Provisioned"*, *"Automated"*.
@@ -127,6 +165,16 @@ resumes using hollow metrics. Stand out by adhering to strict technical groundin
   - Reliability: Error rate dropped from X% to Y%, uptime SLA achieved.
 - **Explain the "Why" / Architecture**: State *why* an architectural choice was
   made (e.g. "decoupled billing via Kafka to eliminate synchronous database locks").
+
+### Humanization checklist (run after drafting, before rendering)
+
+Print/confirm each item — this is the mandatory de-AI pass:
+- [ ] No banned verbs or robotic phrases above, in any section.
+- [ ] No two adjacent bullets open with the same verb or structure.
+- [ ] Sentence lengths vary; no three bullets in a row with identical rhythm.
+- [ ] Every bullet passes the "So what?" test (why did this matter to the team/user?).
+- [ ] Every number is explainable by the candidate in 30 seconds (baseline,
+  method, timeframe/denominator present or flagged as Verify).
 
 List jobs in reverse chronological order (most recent first).
 
@@ -240,6 +288,14 @@ resume, not a restatement of it:
 
 ## 14. Review tools (run before finalizing)
 
+- **Keyword audit (deterministic, no fake scores).** Run the stdlib audit
+  before rendering — it reports missing/underrepresented JD terms and
+  stuffing risks, never a 0-100 "ATS score":
+```bash
+python3 scripts/keyword_audit.py --content resume_content.json --jd job_description.txt
+```
+  Fix genuine gaps by grounding terms in real experience (section 10);
+  never paste keywords the candidate doesn't have.
 - **Readability scan.** Paste the draft into an ATS scanner (e.g.
   Resume Worded, AI Resume Judge) and fix parse errors before sending.
   Tailor-check against the job description with a targeted-resume tool
@@ -251,3 +307,6 @@ resume, not a restatement of it:
   verbatim at least once (full form, not just the abbreviation) and weight
   frequency by their importance in the posting — without stuffing past
   natural reading.
+- **Change log + gap summary.** Deliver both with every resume (formats in
+  SKILL.md): what changed and why (with Verify flags), plus honest
+  DEAL-BREAKER / SIGNIFICANT / MINOR gaps the resume cannot fix.

@@ -12,6 +12,9 @@ Usage:
         # --out omitted: defaults to {First}_{Last}_Resume.docx in the
         # current directory (e.g. Jane_Doe_Resume.docx), which is the
         # filename to submit to ATS portals / recruiters.
+    python3 build_resume_docx.py --content resume_content.json --out resume.docx --pdf --md
+        # --md also writes resume.md: a version-control-friendly source
+        # mirroring the docx content (never submitted to ATS portals).
 
 See references/data_schemas.md (in the parent skill) for the exact shape
 of resume_content.json. See references/docx_creation.md for *why* each
@@ -366,6 +369,80 @@ def default_resume_stem(contact_name):
     return f"{tokens[0]}_{tokens[-1]}_Resume"
 
 
+def build_markdown(content):
+    """Version-control-friendly markdown source of the same resume.
+
+    Mirrors the docx section order and content one-to-one so diffs show
+    what actually changed between tailored versions. Not submitted to
+    ATS portals — the docx/PDF remain the deliverables.
+    """
+    lines = []
+    contact = content.get("contact", {})
+    lines.append(f"# {contact.get('name', '')}")
+    bits = [contact.get(k, "") for k in ("location", "phone", "email", "linkedin", "github", "website")]
+    lines.append(" | ".join(b for b in bits if b))
+    lines.append("")
+    lines.append(f"## {content.get('headline', '')}")
+    lines.append("")
+    lines.append(content.get("summary", ""))
+    lines.append("")
+    lines.append("## Skills")
+    lines.append("")
+    for row in content.get("skills", []):
+        lines.append(f"- **{row.get('category', '')}:** {' | '.join(row.get('items', []))}")
+    lines.append("")
+    lines.append("## Work Experience")
+    lines.append("")
+    for job in content.get("experience", []):
+        lines.append(
+            f"### {job.get('company', '')}, {job.get('location', '')} | "
+            f"{job.get('title', '')} | {job.get('start', '')} - {job.get('end', '')}"
+        )
+        lines.append("")
+        for bullet in job.get("bullets", []):
+            lines.append(f"- {bullet}")
+        lines.append("")
+    lines.append("## Education")
+    lines.append("")
+    for edu in content.get("education", []):
+        lines.append(
+            f"### {edu.get('degree', '')}, {edu.get('school', '')}, {edu.get('location', '')} | "
+            f"{edu.get('grad_year', '')}"
+        )
+        lines.append("")
+        details = []
+        if edu.get("gpa"):
+            details.append(f"GPA: {edu['gpa']}")
+        details.extend(edu.get("achievements", []))
+        if details:
+            lines.append(f"{' | '.join(details)}")
+            lines.append("")
+    projects = content.get("projects", [])
+    if projects:
+        lines.append("## Projects")
+        lines.append("")
+        for proj in projects:
+            title = f"### {proj.get('name', '')}"
+            if proj.get("url"):
+                title += f" ({proj['url']})"
+            lines.append(title)
+            lines.append("")
+            bullets = list(proj.get("bullets") or [])
+            if not bullets and proj.get("description"):
+                bullets = split_description_to_bullets(proj["description"])
+            for bullet in bullets:
+                lines.append(f"- {bullet}")
+            lines.append("")
+    awards = content.get("awards", [])
+    if awards:
+        lines.append("## Awards, Accolades and Certifications")
+        lines.append("")
+        for award in awards:
+            lines.append(f"- {award.get('year', '')} | {award.get('achievement', '')} | {award.get('name', '')}")
+        lines.append("")
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def build_resume(content, out_path):
     document = Document()
     section = document.sections[0]
@@ -429,6 +506,8 @@ def main():
         help="Output .docx path (default: {First}_{Last}_Resume.docx from contact.name)",
     )
     parser.add_argument("--pdf", action="store_true", help="Also convert to PDF")
+    parser.add_argument("--md", action="store_true",
+                        help="Also write a markdown source next to the docx")
     args = parser.parse_args()
 
     with open(args.content, "r", encoding="utf-8") as f:
@@ -444,6 +523,12 @@ def main():
 
     docx_path = build_resume(content, out_path)
     print(f"Wrote {docx_path}")
+
+    if args.md:
+        md_path = os.path.splitext(docx_path)[0] + ".md"
+        with open(md_path, "w", encoding="utf-8") as f:
+            f.write(build_markdown(content))
+        print(f"Wrote {md_path}")
 
     if args.pdf:
         pdf_path = convert_to_pdf(docx_path)
