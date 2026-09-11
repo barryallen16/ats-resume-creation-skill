@@ -198,6 +198,9 @@ def cmd_app_add(args):
     apps_dir = os.path.join(args.data_dir, "applications")
 
     today = datetime.date.today().isoformat()
+    # Internal tracking ID only (unique per application) — never the
+    # submission filename. Submit {First}_{Last}_Resume.pdf (the default
+    # from build_resume_docx.py) to ATS portals / recruiters.
     app_id = f"{slugify(args.company)}_{slugify(args.role)}_{today.replace('-', '')}_{uuid.uuid4().hex[:6]}"
     app_folder = os.path.join(apps_dir, app_id)
     os.makedirs(app_folder, exist_ok=True)

@@ -26,6 +26,10 @@ Write it to a file, e.g. `resume_content.json`.
 
 ```bash
 python3 scripts/build_resume_docx.py --content resume_content.json --out resume.docx --pdf
+# --out omitted: defaults to {First}_{Last}_Resume.docx (+ .pdf with --pdf),
+# e.g. Jane_Doe_Resume.pdf — the human-friendly filename to submit to
+# ATS portals / recruiters. The slug+hash folder under resume_data/ is
+# internal tracking only, never the submission filename.
 ```
 
 This writes `resume.docx` next to it, then converts it to `resume.pdf` via

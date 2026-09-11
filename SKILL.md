@@ -93,6 +93,9 @@ formatting rationale, then:
 
 ```bash
 python3 scripts/build_resume_docx.py --content resume_content.json --out resume.docx --pdf
+# --out omitted: defaults to {First}_{Last}_Resume.docx (+ .pdf), e.g.
+# Jane_Doe_Resume.pdf — use that friendly name for the actual submission.
+# The slug+hash folder under resume_data/applications/ is internal tracking.
 ```
 
 Always visually verify the rendered PDF (procedure in

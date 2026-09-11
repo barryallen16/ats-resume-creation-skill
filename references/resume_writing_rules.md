@@ -102,6 +102,9 @@ for an interviewer to puncture in the first five minutes.
 
 Each job needs a header line with this information, in this order:
 company, location, title, and dates (MM/YYYY format, "Present" if current).
+The docx script renders this as `Company, Location | Title  |  MM/YYYY - MM/YYYY`
+(right-aligned dates): the `|` before the dates is a parsing fallback so the
+title and date never merge into one token if an ATS strips tab characters.
 
 Every bullet under a job must follow the **2026 Grounded Engineering Formula**:
 
@@ -144,6 +147,14 @@ linked to a public repo or live site the reader can actually click through
 to. State the candidate's specific contribution and, where possible, a
 concrete measure of impact or adoption (stars, downloads, users, orgs using
 it) rather than just describing what the project is.
+
+Give each project 2-4 achievement bullets shaped exactly like Work
+Experience bullets (section 6 formula: verb + context + architecture/tool
+choice + outcome/scale) — never a prose paragraph. One bullet should
+cover what was built and the candidate's specific contribution; one
+should carry the quantified outcome (perf, scale, adoption). The docx
+script renders any legacy `description`-only project as bullets as a
+fallback, but always author explicit `bullets` in `resume_content.json`.
 
 ## 9. Awards, Accolades and Certifications (optional)
 

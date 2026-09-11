@@ -39,9 +39,12 @@ today's job description might be exactly what's needed for next month's.
   ],
   "projects": [
     {"name": "...", "url": "...", "description": "...",
-     "bullets": ["...", "..."]}   // bullets preferred: one "- " line each,
-                                   // same shape as experience bullets;
-                                   // description is the fallback paragraph
+     "bullets": ["...", "..."]}   // bullets REQUIRED for resume_content.json:
+                                   // 2-4 achievement bullets, same shape as
+                                   // experience bullets (see writing rules §8);
+                                   // "description" is legacy input only — the
+                                   // docx script auto-splits it into bullets
+                                   // as a fallback, but always author bullets
   ],
   "awards": [
     {"year": "...", "achievement": "...", "name": "..."}

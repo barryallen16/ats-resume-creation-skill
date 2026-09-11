@@ -8,6 +8,10 @@ and (optionally) converts it straight to PDF.
 Usage:
     python3 build_resume_docx.py --content resume_content.json --out resume.docx
     python3 build_resume_docx.py --content resume_content.json --out resume.docx --pdf
+    python3 build_resume_docx.py --content resume_content.json --pdf
+        # --out omitted: defaults to {First}_{Last}_Resume.docx in the
+        # current directory (e.g. Jane_Doe_Resume.docx), which is the
+        # filename to submit to ATS portals / recruiters.
 
 See references/data_schemas.md (in the parent skill) for the exact shape
 of resume_content.json. See references/docx_creation.md for *why* each
@@ -18,6 +22,7 @@ plus a clean single-page read for a human.
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -108,14 +113,26 @@ def add_bullet(document, text, indent=Inches(0.18), hang=Inches(0.18)):
 
 
 def add_right_tab_line(document, left_text, right_text, bold_left=True):
+    """One line with left-aligned text and a right-aligned date.
+
+    The visual alignment uses a right tab stop, but ATS text extraction
+    often drops tab characters entirely. To prevent the title and date
+    from merging into one token (e.g. "Engineer07/2025"), the date run
+    is prefixed with an explicit " | " separator plus the tab — so even
+    if the tab is stripped, a pipe + spaces remain between the tokens.
+    """
     p = document.add_paragraph()
     tight(p, before=6, after=0)
     p.paragraph_format.tab_stops.add_tab_stop(USABLE_WIDTH, WD_TAB_ALIGNMENT.RIGHT)
     r1 = p.add_run(left_text)
     r1.bold = bold_left
     r1.font.size = BODY_SIZE
-    r2 = p.add_run(f"\t{right_text}")
-    r2.font.size = BODY_SIZE
+    if right_text and right_text.strip():
+        # Pipe is the fallback separator if the tab is lost in parsing;
+        # tab provides the visual right-alignment for human readers.
+        r2 = p.add_run(f"  |  \t{right_text.strip()}")
+        r2.bold = False
+        r2.font.size = BODY_SIZE
     return p
 
 
@@ -244,6 +261,27 @@ def build_education(document, content):
             run.font.size = BODY_SIZE
 
 
+def split_description_to_bullets(description, max_bullets=3):
+    """Fallback: turn a prose project description into achievement bullets.
+
+    Projects should arrive with explicit 2-4 "bullets" shaped like work
+    experience bullets (see resume_writing_rules.md section 8). Older
+    profiles only have a single "description" paragraph — rendering that
+    as prose breaks the section's visual rhythm and parses as one blob.
+    Splitting on sentence / clause boundaries keeps the same bulleted
+    style even for legacy data, without inventing new content.
+    """
+    text = (description or "").strip()
+    if not text:
+        return []
+    parts = re.split(r"(?<=[.!?])\s+|;\s+|\s\|\s+", text)
+    bullets = [p.strip().rstrip(" |;").strip() for p in parts]
+    bullets = [b for b in bullets if b]
+    if len(bullets) > max_bullets:
+        bullets = bullets[: max_bullets - 1] + [" ".join(bullets[max_bullets - 1 :])]
+    return bullets
+
+
 def build_projects(document, content):
     projects = content.get("projects", [])
     if not projects:
@@ -263,17 +301,20 @@ def build_projects(document, content):
             add_hyperlink(p, target_url, raw_url, color="0B5394", underline=True)
             close_run = p.add_run(")")
             close_run.font.size = Pt(10)
-        bullets = proj.get("bullets") or []
+        bullets = list(proj.get("bullets") or [])
+        if not bullets and proj.get("description"):
+            bullets = split_description_to_bullets(proj["description"])
+            print(
+                f"Warning: project '{proj.get('name', '?')}' has no 'bullets'; "
+                f"split description into {len(bullets)} bullet(s). "
+                f"Prefer explicit 2-4 achievement bullets per data_schemas.md.",
+                file=sys.stderr,
+            )
+        for bullet in bullets:
+            add_bullet(document, bullet)
         if bullets:
-            for bullet in bullets:
-                add_bullet(document, bullet)
             # breathing room after the last bullet before the next project
             document.paragraphs[-1].paragraph_format.space_after = Pt(4)
-        elif proj.get("description"):
-            desc_p = document.add_paragraph()
-            tight(desc_p, before=0, after=4)
-            desc_run = desc_p.add_run(proj["description"])
-            desc_run.font.size = BODY_SIZE
 
 
 def build_awards(document, content):
@@ -307,6 +348,22 @@ DEFAULT_ORDER = [
     "projects",
     "awards",
 ]
+
+
+def default_resume_stem(contact_name):
+    """Derive a human-friendly file stem from the candidate's full name.
+
+    Returns e.g. "Jane_Doe_Resume" for "Jane Doe" — the filename to
+    submit to ATS portals / recruiters. Falls back to "Resume" when no
+    usable name is present. Only alphanumerics + underscore are kept so
+    the name is safe on every OS and never confuses an ATS upload form.
+    """
+    tokens = re.findall(r"[A-Za-z0-9]+", (contact_name or "").strip())
+    if not tokens:
+        return "Resume"
+    if len(tokens) == 1:
+        return f"{tokens[0]}_Resume"
+    return f"{tokens[0]}_{tokens[-1]}_Resume"
 
 
 def build_resume(content, out_path):
@@ -365,14 +422,27 @@ def convert_to_pdf(docx_path, out_dir=None):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--content", required=True, help="Path to resume_content.json")
-    parser.add_argument("--out", required=True, help="Output .docx path")
+    parser.add_argument(
+        "--out",
+        required=False,
+        default=None,
+        help="Output .docx path (default: {First}_{Last}_Resume.docx from contact.name)",
+    )
     parser.add_argument("--pdf", action="store_true", help="Also convert to PDF")
     args = parser.parse_args()
 
     with open(args.content, "r", encoding="utf-8") as f:
         content = json.load(f)
 
-    docx_path = build_resume(content, args.out)
+    out_path = args.out
+    if not out_path:
+        stem = default_resume_stem(content.get("contact", {}).get("name", ""))
+        out_path = f"{stem}.docx"
+    parent = os.path.dirname(os.path.abspath(out_path))
+    if parent:
+        os.makedirs(parent, exist_ok=True)
+
+    docx_path = build_resume(content, out_path)
     print(f"Wrote {docx_path}")
 
     if args.pdf:
