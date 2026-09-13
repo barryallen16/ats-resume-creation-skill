@@ -30,6 +30,7 @@ import argparse
 import datetime
 import json
 import os
+import re
 import sys
 import urllib.error
 import urllib.parse
@@ -108,6 +109,15 @@ def read_text(path):
         return ""
 
 
+def friendly_stem(name, role):
+    """Download stem like Jayadithya_R_Full-Stack_AI_Engineer (no extension)."""
+    def slug(s):
+        s = re.sub(r"[^\w-]+", "_", (s or "").strip(), flags=re.UNICODE)
+        return re.sub(r"_+", "_", s).strip("_")
+    stem = "_".join(p for p in (slug(name), slug(role)) if p)
+    return stem[:100] or "resume"
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -125,6 +135,12 @@ def main():
     if not local:
         sys.exit(f"{index_path} is empty — nothing to push.")
 
+    try:
+        with open(os.path.join(args.data_dir, "profile.json"), encoding="utf-8") as f:
+            cand = json.load(f).get("contact", {}).get("name", "")
+    except (OSError, ValueError):
+        cand = ""
+
     apps = kv_get(args.url)
     by_id = {a.get("id"): a for a in apps}
 
@@ -141,6 +157,7 @@ def main():
             "notes": rec.get("notes", "ats-resume-skill"),
             "created": to_epoch_ms(rec.get("date_created", "")),
             "jd": read_text(rec.get("job_description_path")),
+            "dl": friendly_stem(cand, rec.get("role", "")),
         }
         for key, path_key in (("strategy", "strategy_path"),
                               ("gaps", "gaps_path"),
