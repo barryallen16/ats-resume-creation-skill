@@ -7,5 +7,8 @@ misc/
 __pycache__/
 # Personal / unpublishable artifacts (never commit: contact info, unpublished work)
 Jayadithya_R_Resume.*
+jayadithya-genai_engineer.pdf
+scratch/Jayadithya_R_Resume_v2.*
+scratch/*.json
 1816_paper.pdf
 main.tex
