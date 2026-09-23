@@ -118,6 +118,18 @@ def friendly_stem(name, role):
     return stem[:100] or "resume"
 
 
+def row_key(company, role):
+    """Canonical (company, role) identity — mirrors the tracker UI's own duplicate rule
+    (suffix-insensitive: Ltd/Pvt/Limited dropped), so it agrees with job-filter's publish.py."""
+    stop = {"pvt", "private", "ltd", "limited", "llp", "inc", "co", "corp", "the",
+            "hiring", "for", "job", "openings", "urgent", "a", "an", "role", "position"}
+
+    def canon(text):
+        return " ".join(w for w in re.sub(r"[^a-z0-9 ]", " ", (text or "").lower()).split() if w not in stop)
+
+    return canon(company) + "::" + canon(role)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -143,9 +155,14 @@ def main():
 
     apps = kv_get(args.url)
     by_id = {a.get("id"): a for a in apps}
+    # job-filter publishes the same postings into this tracker, so match on canonical
+    # (company, role) as well as our own id — matching on id alone would add a second
+    # row for a posting that is already there.
+    by_key = {row_key(a.get("company", ""), a.get("role", "")): a for a in apps}
 
     added = updated = 0
     for rec in local:
+        row = by_id.get(rec["id"]) or by_key.get(row_key(rec.get("company", ""), rec.get("role", "")))
         entry = {
             "id": rec["id"],
             "company": rec.get("company", ""),
@@ -165,11 +182,11 @@ def main():
             text = read_text(rec.get(path_key))
             if text:
                 entry[key] = text
-        if rec["id"] in by_id:
+        if row:
             # local copy gone (e.g. gitignored data dir) — keep server text
             for key in ("jd", "strategy", "gaps", "changelog"):
-                if not entry.get(key) and by_id[rec["id"]].get(key):
-                    entry[key] = by_id[rec["id"]][key]
+                if not entry.get(key) and row.get(key):
+                    entry[key] = row[key]
         # Upload the actual resume files so the tracker can view/download them
         files = []
         for src, suffix in ((rec.get("resume_pdf_path"), ".pdf"),
@@ -187,13 +204,15 @@ def main():
                     files.append(n)
         if files:
             entry["files"] = files
-        elif rec["id"] in by_id and by_id[rec["id"]].get("files"):
-            entry["files"] = by_id[rec["id"]]["files"]  # local copy gone, keep server link
-        if rec["id"] in by_id:
-            by_id[rec["id"]].update(entry)
+        elif row and row.get("files"):
+            entry["files"] = row["files"]  # local copy gone, keep server link
+        if row:
+            row.update(entry)
             updated += 1
         else:
             apps.append(entry)
+            by_id[rec["id"]] = entry
+            by_key[row_key(entry.get("company", ""), entry.get("role", ""))] = entry
             added += 1
 
     kv_put(args.url, apps)
