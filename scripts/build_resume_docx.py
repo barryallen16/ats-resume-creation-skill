@@ -25,7 +25,9 @@ plus a clean single-page read for a human.
 import argparse
 import json
 import os
+import pathlib
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -285,6 +287,20 @@ def split_description_to_bullets(description, max_bullets=3):
     return bullets
 
 
+def _tech_label(tech):
+    """Normalize an optional project 'tech' field to a display string.
+
+    Comma-separated (Jake's Resume style) to keep headings on one line --
+    '|' separators look tall when a URL follows and can wrap the heading,
+    blowing the one-page budget.
+    """
+    if isinstance(tech, list):
+        return ", ".join(t.strip() for t in tech if t and t.strip())
+    if isinstance(tech, str):
+        return tech.strip()
+    return ""
+
+
 def build_projects(document, content):
     projects = content.get("projects", [])
     if not projects:
@@ -296,6 +312,11 @@ def build_projects(document, content):
         name_run = p.add_run(proj["name"])
         name_run.bold = True
         name_run.font.size = BODY_SIZE
+        tech = _tech_label(proj.get("tech"))
+        if tech:
+            stack_run = p.add_run(f"  |  {tech}")
+            stack_run.italic = True
+            stack_run.font.size = BODY_SIZE
         if proj.get("url"):
             raw_url = proj["url"].strip()
             target_url = raw_url if raw_url.startswith(("http://", "https://")) else f"https://{raw_url}"
@@ -415,6 +436,9 @@ def _md_projects(content):
     out = ["## Projects", ""]
     for proj in projects:
         title = f"### {proj.get('name', '')}"
+        tech = _tech_label(proj.get("tech"))
+        if tech:
+            title += f" | {tech}"
         if proj.get("url"):
             title += f" ({proj['url']})"
         out.append(title)
@@ -489,19 +513,39 @@ def build_resume(content, out_path):
     return out_path
 
 
+def _find_soffice():
+    """Resolve the LibreOffice binary, including common Windows install
+    paths -- 'soffice' alone is often not on PATH there."""
+    on_path = shutil.which("soffice") or shutil.which("soffice.exe")
+    if on_path:
+        return on_path
+    candidates = [
+        r"C:\Program Files\LibreOffice\program\soffice.exe",
+        r"C:\Program Files (x86)\LibreOffice\program\soffice.exe",
+    ]
+    for c in candidates:
+        if os.path.exists(c):
+            return c
+    return "soffice"
+
+
 def convert_to_pdf(docx_path, out_dir=None):
     out_dir = out_dir or os.path.dirname(os.path.abspath(docx_path)) or "."
+    soffice = _find_soffice()
     # Give this conversion its own LibreOffice user profile dir. Headless
     # soffice locks a single shared profile by default, which throws
     # spurious errors when an agent runs conversions back-to-back or in
     # parallel -- a fresh temp profile per call sidesteps that entirely.
     profile_dir = os.path.join(tempfile.gettempdir(), f"lo_profile_{uuid.uuid4().hex}")
     env = os.environ.copy()
+    # as_uri() -> file:///C:/... with forward slashes; raw Windows paths
+    # in -env:UserInstallation make soffice exit code 1 with no message.
+    profile_uri = pathlib.Path(profile_dir).resolve().as_uri()
     cmd = [
-        "soffice",
+        soffice,
         "--headless",
         "--norestore",
-        f"-env:UserInstallation=file://{profile_dir}",
+        f"-env:UserInstallation={profile_uri}",
         "--convert-to",
         "pdf",
         "--outdir",

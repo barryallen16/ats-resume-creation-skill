@@ -45,6 +45,8 @@ today's job description might be exactly what's needed for next month's.
   ],
   "projects": [
     {"name": "...", "url": "...", "description": "...",
+     "tech": ["Rust", "rayon"],   // optional; rendered as "Name, Rust, rayon"
+                                  // on the project heading (string also accepted)
      "bullets": ["...", "..."],   // bullets REQUIRED for resume_content.json:
                                   // 2-4 achievement bullets, same shape as
                                   // experience bullets (see writing rules §8);
