@@ -300,9 +300,11 @@ python3 scripts/keyword_audit.py --content resume_content.json --jd job_descript
   Resume Worded, AI Resume Judge) and fix parse errors before sending.
   Tailor-check against the job description with a targeted-resume tool
   where available.
-- **Plain-text test.** Copy the resume content into a plain-text file. If
-  bullets go missing, characters show wrong, or sections scramble, fix the
-  source — the ATS sees what the text file shows, not what Word renders.
+- **Plain-text test (ATS view).** Extract the final PDF's text — this is what the ATS parses, not the rendered layout:
+```bash
+pdftotext resume.pdf - | head -n 60
+```
+  If bullets go missing, characters show wrong, dates merge into titles, or sections scramble, fix the source — full procedure in `docx_creation.md` Step 3.
 - **Keyword mirror check.** Confirm must-have job-description terms appear
   verbatim at least once (full form, not just the abbreviation) and weight
   frequency by their importance in the posting — without stuffing past

@@ -73,6 +73,21 @@ Then view `page-1.jpg` (and `page-2.jpg` if it exists — if there's a page
 - The right-aligned dates in Work Experience/Education actually line up
   against the right margin
 
+Then confirm the ATS view — extract the PDF's text exactly as a parser sees it:
+
+```bash
+pdftotext resume.pdf - | head -n 60
+# pdftotext ships with poppler, same package as pdftoppm/pdfinfo above —
+# no new install.
+```
+
+Confirm:
+- Reading order matches the docx (name → headline → skills → experience → ...), no scrambled sections
+- `|` separators intact between title and dates (e.g. `Title | 07/2025`, never `Engineer07/2025`)
+- No missing bullets, no mangled characters, hyperlinked text (LinkedIn/GitHub/URLs) still present as plain text
+
+If anything is scrambled or merged, fix the source — the ATS sees this extraction, not the rendered layout.
+
 ## Step 4: If it overflows one page
 
 Fix it in this order, stopping as soon as it fits — each step trades away
