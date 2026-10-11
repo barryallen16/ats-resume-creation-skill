@@ -207,7 +207,17 @@ def main():
         elif row and row.get("files"):
             entry["files"] = row["files"]  # local copy gone, keep server link
         if row:
-            row.update(entry)
+            # Phone-side edits win. The local index has no link/type/followup and always
+            # says status=drafted, so a blind update() wipes links typed on the phone and
+            # walks a real status backwards. Only fill blanks; never regress status.
+            for key, value in entry.items():
+                if key == "notes" and value == "ats-resume-skill":
+                    continue  # constant marker, carries no information
+                if not value and row.get(key):
+                    continue  # local side is empty, server already has something
+                if key == "status" and value == "saved" and row.get(key) not in ("", "saved"):
+                    continue  # never walk applied/interview/offer/rejected backwards
+                row[key] = value
             updated += 1
         else:
             apps.append(entry)
