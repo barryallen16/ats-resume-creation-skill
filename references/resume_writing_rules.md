@@ -175,6 +175,17 @@ Print/confirm each item — this is the mandatory de-AI pass:
 - [ ] Every bullet passes the "So what?" test (why did this matter to the team/user?).
 - [ ] Every number is explainable by the candidate in 30 seconds (baseline,
   method, timeframe/denominator present or flagged as Verify).
+- [ ] Third person and telegraphic: no "I", "my", or "we", and drop articles
+  where the line still reads cleanly ("Managed a 12-engineer team", not
+  "I managed a team of 12 engineers").
+- [ ] Understated, never rounded up: 6.7 is "over six and a half", never
+  "nearly seven". Inflating one number invites an interviewer to discount all
+  of them — this is the Zero Fabrication Policy seen from the other side.
+- [ ] No needless words. Cut these on sight: utilize → use, responsible for →
+  led/built, in order to → to, at this point in time → now, in the event of →
+  if, with regard to → about, hold a meeting → meet, in view of → because.
+- [ ] Zero typos. Proofread the rendered text once before finalizing — a typo
+  is the cheapest reason a strong resume gets discarded.
 
 List jobs in reverse chronological order (most recent first).
 
@@ -274,6 +285,20 @@ resume, not a restatement of it:
 - Avoid restating bullets already on the resume nearly verbatim — use the
   cover letter to add context (motivation, a story, a connection) the
   resume format can't hold.
+- **Address a named human, spelled correctly.** "Dear Hiring Manager" is a
+  last resort. Find the actual recruiter or hiring manager — the posting, the
+  company site, LinkedIn — and confirm both the name and its spelling ("Ann"
+  vs "Anne"). A misspelled name is an instant reject.
+- **Reader benefit first.** Open with why this candidate fits *this* role,
+  not a paragraph of "I, I, I". The letter is about the employer's problem,
+  not the candidate's history.
+- **Close with a next step the candidate owns, by date.** "I'll call Wednesday
+  morning" beats "I look forward to hearing from you." Never end on "Hoping
+  to hear."
+- **Send it to more than one person in the org.** The recruiter may not be the
+  decision-maker — a short note to the hiring manager, or a referral, also
+  helps. Re-send after a couple of weeks, and follow up with a specific
+  thank-you, no gush.
 
 ## 13. A few things to flag to the candidate, not just do silently
 
@@ -285,6 +310,11 @@ resume, not a restatement of it:
   mention it — applying broadly at one employer can read as unfocused.
    `resume_store.py app check-duplicate` can detect this automatically;
    use it before finalizing a new application (see the main SKILL.md).
+- **Ask whether they know anyone at the company.** Most hires come through
+  contacts, not cold applications. If the candidate knows someone — or knows
+  someone who knows someone — an introducer forwarding the resume beats the
+  same file dropped into a portal. Ask before finalizing: a referral changes
+  where the resume goes and how it's framed.
 
 ## 14. Review tools (run before finalizing)
 
@@ -312,3 +342,65 @@ pdftotext resume.pdf - | head -n 60
 - **Change log + gap summary.** Deliver both with every resume (formats in
   SKILL.md): what changed and why (with Verify flags), plus honest
   DEAL-BREAKER / SIGNIFICANT / MINOR gaps the resume cannot fix.
+- **Top-third test.** Cover everything below roughly the top third of page 1
+  and read only what remains. That slice must already name the target role,
+  show the JD's must-have skills, and carry at least one quantified win.
+  Recruiters' first screen averages under ~8 seconds and sweeps the top of the
+  page and the left edge (titles, employers, dates) before anything deeper is
+  read. If the top third doesn't sell on its own, move the strongest material
+  up rather than adding more below.
+
+## 15. What never belongs on a resume
+
+Reading time is scarce, and a single wrong element can sink a document. Omit
+all of the following — most are also illegal or biasing for an employer to
+consider, and several confuse ATS parsers:
+
+- Photo, and any graphic or logo.
+- Age or date of birth, gender, marital status, race, religion, nationality.
+- Height, weight, or health and disability details.
+- Home address beyond city/state — never a full street address.
+- Salary history or salary expectations. Negotiate in conversation, not on
+  the page; a JD that explicitly demands a number is the only exception.
+- Hobbies, clubs, travel, and personal trivia — unless directly job-relevant.
+- "References available on request" — a wasted line. The reference list is
+  supplied on its own sheet when asked.
+- Reasons for leaving, or criticism of a past employer.
+- Self-assessed ratings ("Excellent communication skills") and puffery.
+- Video links, QR codes, and decorative multi-column or sidebar layouts.
+- Mystery acronyms for employers — write the full company name.
+
+## 16. Employment gaps
+
+Do not hide a gap by stretching dates or dropping a role. Background checks and
+the interview will surface it, and a fudged timeline costs more trust than the
+gap did.
+
+- Keep the timeline reverse-chronologically continuous and honest about
+  months/years.
+- Fill the gap with what was actually happening — a career break, study,
+  caregiving, or personal projects ("2025–2026 Personal Projects: <one line on
+  what was built>"). Give it a label, not an unexplained hole.
+- Anchor the label to something concrete — a course, a certification, an
+  open-source contribution, a shipped side project — so it reads as a period
+  of work rather than an absence.
+- One line is enough if it comes up; the cover letter is a better place for
+  narrative context than the resume itself.
+
+## 17. Deliberately not adopted from general writing guidance
+
+Two pieces of conventional writing advice conflict with this skill. They are
+recorded here so they don't get re-litigated on a future edit:
+
+- **"The resume can stay the same; tailor the letter instead."** This skill's
+  premise is per-job-description tailoring of the resume itself. A generic
+  resume that survives the ATS parse and then fails the keyword-mirror check
+  (section 14) is exactly the failure mode sections 3–6, 10, and 11 exist to
+  prevent.
+- **"ATS needs plain text: no bold, no italics, no bullets."** That guidance
+  predates modern parsers. Current practice and the eye-tracking data both
+  favour simple layouts with bold job titles supported by bulleted
+  accomplishments: the bold titles give the skim an anchor, and the bullets
+  make the accomplishments scannable. `build_resume_docx.py` already draws the
+  line correctly — bold titles, real bullets, and no tables, columns, or
+  graphics.

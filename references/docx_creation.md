@@ -72,6 +72,10 @@ Then view `page-1.jpg` (and `page-2.jpg` if it exists — if there's a page
 - No obviously cut-off text at the bottom margin
 - The right-aligned dates in Work Experience/Education actually line up
   against the right margin
+- The top third of page 1 makes the case on its own — cover the rest and read
+  just that slice (headline, summary, skills, the first role's first bullets);
+  it should still name the target role and show one quantified win (see
+  `resume_writing_rules.md` section 14)
 
 Then confirm the ATS view — extract the PDF's text exactly as a parser sees it:
 

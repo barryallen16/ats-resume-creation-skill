@@ -92,6 +92,11 @@ strategy are written down (even briefly):
   seniority signal, team structure if stated, domain language.
 - **Strategy:** top 3 strengths to lead with, what to downplay or suppress
   (see `excluded_skills`), `section_order` per seniority table, page target.
+  These strengths have to land in the **top third of page 1** — a recruiter's
+  first screen averages under ~8 seconds, so the headline, summary, skills,
+  and the current role's first bullets must sell the candidacy on their own
+  before anything below them is read (see `references/resume_writing_rules.md`
+  section 14).
 - **Content + humanization:** draft bullets (zero-fabrication policy:
   trace every number to the profile or flag Verify), then run the
   humanization checklist in `resume_writing_rules.md` section 6.
@@ -128,7 +133,9 @@ python3 scripts/keyword_audit.py --content resume_content.json --jd job_descript
 Fix genuine gaps by grounding terms in real experience — never paste
 keywords the candidate doesn't have. Then visually verify the rendered
 PDF (procedure in `references/docx_creation.md`) before treating it as
-final — confirm it's exactly one page and nothing is cut off.
+final — confirm it's exactly one page, nothing is cut off, and the top third
+of page 1 still makes the case by itself (the top-third test in
+`references/resume_writing_rules.md` section 14).
 
 ### 5. Record the application
 
