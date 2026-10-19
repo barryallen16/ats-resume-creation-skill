@@ -180,6 +180,26 @@ application id — re-running is safe and updates statuses in place
 and under Files. Do this as the last step of any application
 workflow, after the status is final for this session.
 
+### 5c. Archive the PDF into the dated applications folder
+
+Every finished resume PDF also gets a copy in the candidate's own archive on
+the Desktop — one folder per day, named `<day>-<3-letter month>` (e.g.
+`19-oct`, `16-oct`):
+
+```bash
+python3 scripts/archive_resume.py \
+  --pdf resume_data/applications/<id>/resume.pdf \
+  --role "Engineer, Programmer Analyst"
+```
+
+It writes to `~/Desktop/resume-applications/<DD>-<mmm>/<First_Last>_<Role>.pdf`,
+reusing the same download stem the web tracker uses for that application, so
+the archive and the tracker never disagree. The candidate's name comes from
+`profile.json`; override with `--name`, or pin the date with `--date
+YYYY-MM-DD`. Re-running just overwrites the copy. **Do this for every
+resume generated — a tailored resume that never reaches the archive folder is
+not finished.**
+
 ### 6. List past applications, on request
 
 ```bash
@@ -211,6 +231,20 @@ resume_data/                          <- persists across sessions
 All `resume_store.py` commands accept `--data-dir <path>` if this
 shouldn't default to `./resume_data` (e.g. a fixed location per candidate).
 
+Outside the skill, the candidate keeps a flat PDF archive of everything that
+was ever sent out:
+
+```
+~/Desktop/resume-applications/
+├── 19-oct/
+│   └── Jayadithya_R_Engineer_Programmer_Analyst.pdf
+└── 16-oct/
+    └── Jayadithya_R_AI_Developer.pdf
+```
+
+One folder per day, `<DD>-<3-letter month>`, one PDF per application inside
+it. Written by `scripts/archive_resume.py` (section 5c).
+
 ## Reference files — read these, don't guess
 
 - `references/resume_writing_rules.md` — the actual content rules: section
@@ -236,3 +270,7 @@ shouldn't default to `./resume_data` (e.g. a fixed location per candidate).
   Matter web tracker (`/tracker/`); stdlib-only, idempotent, run after
   every `app add` / `update-status` (see section 5b).
   Pure Python + JSON files, no external services required.
+- `scripts/archive_resume.py` — copies a finished resume PDF into
+  `~/Desktop/resume-applications/<DD>-<mmm>/<First_Last>_<Role>.pdf`;
+  stdlib-only, idempotent, run after every resume is generated
+  (see section 5c).
