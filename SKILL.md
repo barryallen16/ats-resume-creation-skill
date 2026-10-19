@@ -137,6 +137,19 @@ final — confirm it's exactly one page, nothing is cut off, and the top third
 of page 1 still makes the case by itself (the top-third test in
 `references/resume_writing_rules.md` section 14).
 
+Then check that the PDF's text layer is clean:
+
+```bash
+python3 scripts/ats_hyphen_check.py --content resume_content.json --pdf resume.pdf
+```
+
+A hyphenated word that lands at a line end gets de-hyphenated by the text
+layer: "first-author" extracts as "firstauthor" or "fix- explanation", and a
+keyword matcher then misses it. The script flags every hyphenated word in the
+content that does not survive extraction. Reword (or rewrap) and rebuild until
+it reports clean. Both "first-author" and "fix-explanation" have actually
+broken this way in real drafts, so run it every time.
+
 ### 5. Record the application
 
 Once the resume is finalized for this specific company/role:
@@ -274,3 +287,7 @@ it. Written by `scripts/archive_resume.py` (section 5c).
   `~/Desktop/resume-applications/<DD>-<mmm>/<First_Last>_<Role>.pdf`;
   stdlib-only, idempotent, run after every resume is generated
   (see section 5c).
+- `scripts/ats_hyphen_check.py` — verifies every hyphenated word in the
+  content survives PDF text extraction, so a word broken across a line
+  break never reaches an ATS as "firstauthor"; stdlib-only plus `pdftotext`,
+  run before calling a resume final (see section 4).
