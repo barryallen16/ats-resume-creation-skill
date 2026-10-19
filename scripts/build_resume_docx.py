@@ -472,6 +472,72 @@ MD_BUILDERS = {
 }
 
 
+def build_plain_text(content):
+    """Paste-ready plain text of the same resume: one line per paragraph,
+    never soft-wrapped.
+
+    Copying text straight out of a PDF bakes the renderer's line breaks into
+    the clipboard, and pasting that into a portal's plain-text box saves the
+    soft wraps as hard newlines inside a bullet. This file is the safe
+    source to copy from.
+    """
+    contact = content.get("contact", {})
+    bits = [contact.get(k, "") for k in ("location", "phone", "email", "linkedin", "github", "website")]
+    lines = [contact.get("name", ""), " | ".join(b for b in bits if b), ""]
+    for key in content.get("section_order", DEFAULT_ORDER):
+        if key in ("contact", "headline_summary"):
+            continue
+        if key == "skills":
+            lines.append("SKILLS")
+            for row in content.get("skills", []):
+                lines.append(f"{row.get('category', '')}: " + " | ".join(row.get("items", [])))
+            lines.append("")
+        elif key == "education":
+            lines.append("EDUCATION")
+            for edu in content.get("education", []):
+                lines.append(
+                    f"{edu.get('degree', '')}, {edu.get('school', '')}, {edu.get('location', '')}"
+                    f" | {edu.get('grad_year', '')}"
+                )
+            lines.append("")
+        elif key == "projects":
+            lines.append("PROJECTS")
+            for proj in content.get("projects", []):
+                head = proj.get("name", "")
+                tech = _tech_label(proj.get("tech"))
+                if tech:
+                    head += f" | {tech}"
+                if proj.get("url"):
+                    head += f" ({proj['url']})"
+                lines.append(head)
+                for bullet in proj.get("bullets") or []:
+                    lines.append(f"-  {bullet}")
+            lines.append("")
+        elif key == "experience":
+            lines.append("WORK EXPERIENCE")
+            for job in content.get("experience", []):
+                lines.append(
+                    f"{job.get('company', '')}, {job.get('location', '')} | {job.get('title', '')}"
+                    f" | {job.get('start', '')} - {job.get('end', '')}"
+                )
+                for bullet in job.get("bullets", []):
+                    lines.append(f"-  {bullet}")
+            lines.append("")
+        elif key == "awards":
+            awards = content.get("awards", [])
+            if awards:
+                lines.append("AWARDS")
+                for award in awards:
+                    lines.append(
+                        f"{award.get('year', '')} | {award.get('achievement', '')} | {award.get('name', '')}"
+                    )
+                lines.append("")
+    # headline + summary sit directly under the contact block
+    out = [lines[0], lines[1], "", content.get("headline", ""), content.get("summary", ""), ""]
+    out += lines[3:]
+    return "\n".join(out).rstrip() + "\n"
+
+
 def build_markdown(content):
     """Version-control-friendly markdown source of the same resume.
 
@@ -578,6 +644,8 @@ def main():
     parser.add_argument("--pdf", action="store_true", help="Also convert to PDF")
     parser.add_argument("--md", action="store_true",
                         help="Also write a markdown source next to the docx")
+    parser.add_argument("--txt", action="store_true",
+                        help="Also write paste-ready plain text (no soft wraps) next to the docx")
     args = parser.parse_args()
 
     with open(args.content, "r", encoding="utf-8") as f:
@@ -599,6 +667,12 @@ def main():
         with open(md_path, "w", encoding="utf-8") as f:
             f.write(build_markdown(content))
         print(f"Wrote {md_path}")
+
+    if args.txt:
+        txt_path = os.path.splitext(docx_path)[0] + ".txt"
+        with open(txt_path, "w", encoding="utf-8") as f:
+            f.write(build_plain_text(content))
+        print(f"Wrote {txt_path}")
 
     if args.pdf:
         pdf_path = convert_to_pdf(docx_path)

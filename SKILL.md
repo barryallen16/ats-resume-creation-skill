@@ -121,6 +121,10 @@ python3 scripts/build_resume_docx.py --content resume_content.json --out resume.
 # Jane_Doe_Resume.pdf — use that friendly name for the actual submission.
 # The slug+hash folder under resume_data/applications/ is internal tracking.
 # Add --md for a version-control-friendly markdown source next to the docx.
+# Add --txt for paste-ready plain text (one line per paragraph, never
+# soft-wrapped) — copy from THIS, not from the PDF, when a portal asks for
+# pasted text. Copying out of a PDF bakes the renderer's line breaks into the
+# clipboard, and the portal then saves them as hard newlines mid-bullet.
 ```
 
 Run the deterministic keyword audit before treating the draft as final
