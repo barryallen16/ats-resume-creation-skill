@@ -22,7 +22,6 @@ formatting choice below exists -- it's all in service of ATS parseability
 plus a clean single-page read for a human.
 """
 
-import argparse
 import json
 import os
 import pathlib
@@ -33,20 +32,61 @@ import sys
 import tempfile
 import uuid
 
-from docx import Document
-from docx.shared import Inches, Pt
-from docx.enum.text import WD_TAB_ALIGNMENT, WD_ALIGN_PARAGRAPH
-from docx.oxml.ns import qn
-from docx.oxml import OxmlElement
-from docx.opc.constants import RELATIONSHIP_TYPE
+_HERE = os.path.dirname(os.path.abspath(__file__))
+if _HERE not in sys.path:
+    sys.path.insert(0, _HERE)
+
+import axi  # noqa: E402  (needs the sys.path.insert above)
+
+DESCRIPTION = "Build an ATS-friendly .docx (and .pdf) from a resume_content.json file"
 
 BODY_FONT = "Calibri"          # Arial / Calibri / Garamond are the only ATS-safe choices
-BODY_SIZE = Pt(10.5)           # never go below 10pt
-NAME_SIZE = Pt(18)
-HEADLINE_SIZE = Pt(11.5)
-SECTION_HEAD_SIZE = Pt(11.5)
-MARGIN = Inches(0.5)           # narrow margins instead of header/footer regions
-USABLE_WIDTH = Inches(8.5 - 1.0)  # Letter width minus the two 0.5" margins
+
+# python-docx symbols and the sizes derived from them. Populated on first use
+# by _load_docx() so that `--version` and `--help` never import the
+# dependency: agents probe those constantly, and a missing python-docx
+# should not turn a version check into a traceback.
+Document = Inches = Pt = None
+WD_TAB_ALIGNMENT = WD_ALIGN_PARAGRAPH = qn = OxmlElement = RELATIONSHIP_TYPE = None
+BODY_SIZE = NAME_SIZE = HEADLINE_SIZE = SECTION_HEAD_SIZE = MARGIN = USABLE_WIDTH = None
+
+
+class DocxMissing(RuntimeError):
+    """python-docx is not installed."""
+
+
+def _load_docx():
+    global Document, Inches, Pt, WD_TAB_ALIGNMENT, WD_ALIGN_PARAGRAPH
+    global qn, OxmlElement, RELATIONSHIP_TYPE
+    global BODY_SIZE, NAME_SIZE, HEADLINE_SIZE, SECTION_HEAD_SIZE, MARGIN, USABLE_WIDTH
+    if Document is not None:
+        return
+    try:
+        from docx import Document as _Document
+        from docx.enum.text import WD_ALIGN_PARAGRAPH as _WD_ALIGN_PARAGRAPH
+        from docx.enum.text import WD_TAB_ALIGNMENT as _WD_TAB_ALIGNMENT
+        from docx.opc.constants import RELATIONSHIP_TYPE as _RELATIONSHIP_TYPE
+        from docx.oxml import OxmlElement as _OxmlElement
+        from docx.oxml.ns import qn as _qn
+        from docx.shared import Inches as _Inches, Pt as _Pt
+    except ImportError as e:
+        raise DocxMissing(str(e)) from e
+
+    Document = _Document
+    Inches = _Inches
+    Pt = _Pt
+    WD_TAB_ALIGNMENT = _WD_TAB_ALIGNMENT
+    WD_ALIGN_PARAGRAPH = _WD_ALIGN_PARAGRAPH
+    qn = _qn
+    OxmlElement = _OxmlElement
+    RELATIONSHIP_TYPE = _RELATIONSHIP_TYPE
+
+    BODY_SIZE = Pt(10.5)           # never go below 10pt
+    NAME_SIZE = Pt(18)
+    HEADLINE_SIZE = Pt(11.5)
+    SECTION_HEAD_SIZE = Pt(11.5)
+    MARGIN = Inches(0.5)           # narrow margins instead of header/footer regions
+    USABLE_WIDTH = Inches(8.5 - 1.0)  # Letter width minus the two 0.5" margins
 
 
 def set_narrow_margins(section):
@@ -56,7 +96,10 @@ def set_narrow_margins(section):
     section.bottom_margin = MARGIN
 
 
-def set_default_font(document, name=BODY_FONT, size=BODY_SIZE):
+def set_default_font(document, name=BODY_FONT, size=None):
+    _load_docx()
+    if size is None:
+        size = BODY_SIZE
     style = document.styles["Normal"]
     style.font.name = name
     style.font.size = size
@@ -101,12 +144,16 @@ def add_section_heading(document, text):
     return p
 
 
-def add_bullet(document, text, indent=Inches(0.18), hang=Inches(0.18)):
+def add_bullet(document, text, indent=None, hang=None):
     """A literal bullet character on a plain paragraph, not Word's
     auto-numbering. Some lightweight ATS parsers drop text that lives
     inside a numbering field -- a literal '-' + space is always read as
     plain text, so it's the safer default for a document you can't test
     against every ATS in the world."""
+    _load_docx()
+    if indent is None:
+        indent = Inches(0.18)
+        hang = Inches(0.18)
     p = document.add_paragraph()
     tight(p, before=0, after=2)
     pf = p.paragraph_format
@@ -494,6 +541,7 @@ def build_markdown(content):
 
 
 def build_resume(content, out_path):
+    _load_docx()
     document = Document()
     section = document.sections[0]
     set_narrow_margins(section)
@@ -567,7 +615,7 @@ def convert_to_pdf(docx_path, out_dir=None):
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = axi.AxiParser(description=DESCRIPTION)
     parser.add_argument("--content", required=True, help="Path to resume_content.json")
     parser.add_argument(
         "--out",
@@ -578,10 +626,17 @@ def main():
     parser.add_argument("--pdf", action="store_true", help="Also convert to PDF")
     parser.add_argument("--md", action="store_true",
                         help="Also write a markdown source next to the docx")
+    axi.add_version(parser)
     args = parser.parse_args()
 
-    with open(args.content, "r", encoding="utf-8") as f:
-        content = json.load(f)
+    try:
+        with open(args.content, "r", encoding="utf-8") as f:
+            content = json.load(f)
+    except FileNotFoundError:
+        axi.fail(f"--content not found: {args.content}", hint="Pass a readable path to resume_content.json")
+    except json.JSONDecodeError as e:
+        axi.fail(f"{args.content} is not valid JSON: {e}",
+                 hint=f"Check it with `python3 -m json.tool {args.content}`")
 
     out_path = args.out
     if not out_path:
@@ -591,18 +646,40 @@ def main():
     if parent:
         os.makedirs(parent, exist_ok=True)
 
-    docx_path = build_resume(content, out_path)
-    print(f"Wrote {docx_path}")
+    try:
+        docx_path = build_resume(content, out_path)
+    except DocxMissing:
+        axi.fail(
+            "python-docx is not installed",
+            hint="Install it with `pip install -r requirements.txt` (or `uv pip install python-docx`)",
+        )
+
+    written = {"docx": os.path.abspath(docx_path)}
 
     if args.md:
         md_path = os.path.splitext(docx_path)[0] + ".md"
         with open(md_path, "w", encoding="utf-8") as f:
             f.write(build_markdown(content))
-        print(f"Wrote {md_path}")
+        written["md"] = os.path.abspath(md_path)
 
     if args.pdf:
-        pdf_path = convert_to_pdf(docx_path)
-        print(f"Wrote {pdf_path}")
+        try:
+            written["pdf"] = convert_to_pdf(docx_path)
+        except RuntimeError as e:
+            print(f"soffice: {e}", file=sys.stderr)
+            axi.fail(
+                "PDF conversion failed",
+                hint="Install LibreOffice (soffice on PATH), or re-run without --pdf to get the .docx only",
+            )
+        except FileNotFoundError:
+            axi.fail(
+                "PDF conversion needs LibreOffice, which was not found on PATH",
+                hint="Install LibreOffice, or re-run without --pdf to get the .docx only",
+            )
+
+    axi.emit(written, hints=[
+        "Run `python3 scripts/keyword_audit.py --content <file> --jd <file>` to audit the content before sending it",
+    ])
 
 
 if __name__ == "__main__":
