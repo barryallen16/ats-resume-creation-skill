@@ -5,6 +5,8 @@ raw/
 opencode.json
 misc/
 __pycache__/
+.venv/
+.ruff_cache/
 # Personal / unpublishable artifacts (never commit: contact info, unpublished work)
 Jayadithya_R_Resume.*
 jayadithya-genai_engineer.pdf

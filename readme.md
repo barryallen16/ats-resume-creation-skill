@@ -1,7 +1,7 @@
 # resume-builder-skill
 
 An [Agent Skill](https://agentskills.io) that **creates** tailored, ATS-friendly
-software engineer resumes — not reviews or scores existing ones. Point it at a
+software engineer resumes - not reviews or scores existing ones. Point it at a
 candidate's background and a job posting, and it:
 
 - tailors resume content to that specific job description (section order,
@@ -27,18 +27,22 @@ resume-builder/
 │   ├── docx_creation.md              # docx → PDF subskill + ATS formatting rationale
 │   └── data_schemas.md               # JSON shapes for profile/content/tracker
 └── scripts/
+    ├── axi.py                        # shared output layer: TOON encoder + exit codes
     ├── build_resume_docx.py          # generates ATS-safe .docx, converts to PDF
     ├── keyword_audit.py              # pre-submission JD keyword audit (no scores)
-    └── resume_store.py               # profile persistence + job-application tracking CLI
+    ├── resume_store.py               # profile persistence + job-application tracking CLI
+    └── tracker_push.py               # syncs applications to the Grey Matter web tracker
 ```
 
 ## Requirements
 
 - Python 3.8+
-- [`python-docx`](https://python-docx.readthedocs.io/)
-- [LibreOffice](https://www.libreoffice.org/) (`soffice` on `PATH`) — optional,
+- [`python-docx`](https://python-docx.readthedocs.io/) - `pip install -r requirements.txt`
+- [LibreOffice](https://www.libreoffice.org/) (`soffice` on `PATH`) - optional,
   only needed for the `.docx` → `.pdf` conversion step. Without it you still
   get a complete, valid `.docx`.
+
+Every other script is stdlib-only.
 
 ## Quickstart
 
@@ -48,7 +52,7 @@ git clone https://github.com/barryallen16/ats-resume-creation-skill.git
 cd ats-resume-creation-skill
 
 # 2. Install the Python dependency
-pip install python-docx --break-system-packages   # drop the flag if not needed on your system
+uv venv && uv pip install -r requirements.txt   # or: pip install -r requirements.txt
 
 # 3. (optional) Install LibreOffice for PDF conversion
 sudo apt-get install libreoffice      # Debian/Ubuntu
@@ -77,13 +81,13 @@ cp -r . ~/.hermes/skills/resume-builder
 
 ## How it works
 
-1. **Load or start the candidate's profile** — a persistent JSON file
+1. **Load or start the candidate's profile** - a persistent JSON file
    (`resume_data/profile.json`) holding every job, bullet, project, and award
    the candidate has ever mentioned. New info merges in without erasing
    anything already recorded.
 2. **Get the job description** for the specific application, and check
    whether that company + role has already been applied to.
-3. **Tailor the content** — pick the best-fitting subset of the profile for
+3. **Tailor the content** - pick the best-fitting subset of the profile for
    this job, following the rules in `references/resume_writing_rules.md`
    (ATS-safe formatting, section order, keyword optimization, quantified
    accomplishment bullets).
@@ -103,11 +107,51 @@ cp -r . ~/.hermes/skills/resume-builder
 See `SKILL.md` for the full step-by-step workflow an agent follows, and
 `references/data_schemas.md` for the exact JSON shapes used throughout.
 
+## Output format for agents
+
+Every script prints [TOON](https://toonformat.dev/), a compact
+tab-separated encoding of JSON. On this skill's own output that is 25% to
+65% fewer tokens than the equivalent pretty-printed JSON, and the result
+still reads as a table.
+
+```
+$ python3 scripts/resume_store.py app list
+count: 3 of 3 total
+apps[3]{ref,date,company,role,status}:
+  b52714,"2026-10-21T17:20:21",Acme Corp,Backend Engineer,drafted
+  ...
+help[1]:
+  Run `resume_store.py app view <ref>` for the full record of one application
+```
+
+The scripts follow one exit-code contract:
+
+| Code | Meaning |
+|---|---|
+| 0 | success, including no-ops |
+| 1 | blocked - the action needs a decision |
+| 2 | usage error - unknown flag, missing flag, bad value |
+
+Errors print on stdout as `error: <what went wrong>` plus
+`help: <the command that fixes it>`, and every read command takes
+`--json` for raw JSON.
+
+## Development
+
+```bash
+uv pip install -r requirements.txt
+uvx ruff check scripts/          # lint
+python3 scripts/test_axi.py      # TOON encoder unit tests
+python3 scripts/test_resume_store.py   # profile + tracker CLI tests
+python3 scripts/test_cli.py      # audit, docx builder, tracker push tests
+```
+
 ## Data persistence layout
 
 Everything persists under `resume_data/` (configurable via `--data-dir` on
-either script), and is safe to `.gitignore` — it's per-candidate runtime data,
-not part of the skill itself:
+either script, or the `RESUME_DATA_DIR` environment variable), and is safe
+to `.gitignore` - it's per-candidate runtime data, not part of the skill
+itself:
 
 ```
 resume_data/
