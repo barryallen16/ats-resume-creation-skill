@@ -39,7 +39,7 @@ STOPWORDS = {
     "under", "over", "both", "each", "few", "who", "whom", "what", "when",
     "where", "which", "while", "within", "without", "using", "used", "use",
     "work", "working", "team", "teams", "role", "roles", "job", "join",
-    "help", "helps", "including", "preferred", "required", "requirements",
+    "help", "helps", "preferred", "required", "requirements",
     "responsibilities", "qualifications", "experience", "years", "year",
     "ability", "strong", "excellent", "good", "great", "best", "new",
     "company", "business", "product", "products", "customer", "customers",

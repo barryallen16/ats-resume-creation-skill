@@ -283,7 +283,7 @@ def split_description_to_bullets(description, max_bullets=3):
     bullets = [p.strip().rstrip(" |;").strip() for p in parts]
     bullets = [b for b in bullets if b]
     if len(bullets) > max_bullets:
-        bullets = bullets[: max_bullets - 1] + [" ".join(bullets[max_bullets - 1 :])]
+        bullets = [*bullets[: max_bullets - 1], " ".join(bullets[max_bullets - 1 :])]
     return bullets
 
 
