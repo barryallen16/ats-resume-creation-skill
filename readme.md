@@ -133,17 +133,17 @@ The scripts follow one exit-code contract:
 | 2 | usage error - unknown flag, missing flag, bad value |
 
 Errors print on stdout as `error: <what went wrong>` plus
-`help: <the command that fixes it>`, and every read command takes
-`--json` for raw JSON.
+`help: <the command that fixes it>`. `profile show`, `app list` and
+`keyword_audit` take `--json` for raw JSON.
 
 ## Development
 
 ```bash
-uv pip install -r requirements.txt
-uvx ruff check scripts/          # lint
-python3 scripts/test_axi.py      # TOON encoder unit tests
-python3 scripts/test_resume_store.py   # profile + tracker CLI tests
-python3 scripts/test_cli.py      # audit, docx builder, tracker push tests
+uv venv && uv pip install -r requirements.txt
+uvx ruff check scripts/                  # lint
+python3 scripts/test_axi.py              # TOON encoder unit tests
+python3 scripts/test_resume_store.py     # profile + tracker CLI tests
+python3 scripts/test_cli.py              # audit, docx builder, tracker push tests
 ```
 
 ## Data persistence layout
