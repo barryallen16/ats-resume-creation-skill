@@ -134,6 +134,10 @@ def applications_index_path(data_dir):
     return os.path.join(data_dir, "applications", "applications_index.json")
 
 
+def plural(count, noun):
+    return f"{count} {noun}" if count == 1 else f"{count} {noun}s"
+
+
 def read_text(path, limit=None):
     """Text file contents, or '' when missing/unreadable."""
     try:
@@ -394,7 +398,7 @@ def resolve_app(index, ident):
         return prefix[0]
     if len(suffix) > 1 or len(prefix) > 1:
         axi.fail(
-            f"{ident} matches {len(suffix) or len(prefix)} applications",
+            f"{ident} matches {plural(len(suffix) or len(prefix), 'application')}",
             hint="Use the full id, or run `resume_store.py app list` to pick one",
         )
     return None
@@ -561,7 +565,7 @@ def cmd_app_list(args):
     out["apps"] = shown
     hints = []
     if total > len(shown):
-        hints.append(f"Run `resume_store.py app list {filter_hint}` for all {total} applications")
+        hints.append(f"Run `resume_store.py app list {filter_hint}` for all {plural(total, 'application')}")
     hints.append("Run `resume_store.py app view <ref>` for the full record of one application")
     axi.emit(out, hints=hints)
 
@@ -572,7 +576,7 @@ def cmd_app_view(args):
     if row is None:
         axi.fail(
             f"no application with id {args.id}",
-            hint=f"Run `resume_store.py app list` to see all {len(index)} applications",
+            hint=f"Run `resume_store.py app list` to see all {plural(len(index), 'application')}",
         )
 
     out = {
@@ -663,7 +667,7 @@ def cmd_app_update_status(args):
     if row is None:
         axi.fail(
             f"no application with id {args.id}",
-            hint=f"Run `resume_store.py app list` to see all {len(index)} applications",
+            hint=f"Run `resume_store.py app list` to see all {plural(len(index), 'application')}",
         )
     current = row.get("status", "")
     if current == args.status:
@@ -721,7 +725,7 @@ def cmd_home(args):
     else:
         hints.append("Run `resume_store.py profile show` for the full candidate history")
     if len(index) > len(recent):
-        hints.append(f"Run `resume_store.py app list` for all {len(index)} applications")
+        hints.append(f"Run `resume_store.py app list` for all {plural(len(index), 'application')}")
     hints.append("Run `resume_store.py app list` to filter by company, role, or status")
     axi.emit(out, hints=hints)
 
