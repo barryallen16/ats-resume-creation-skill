@@ -56,6 +56,8 @@ if _HERE not in sys.path:
 
 import axi  # noqa: E402  (needs the sys.path.insert above)
 
+DESCRIPTION = "Persistent candidate profile and job-application tracker"
+
 DEFAULT_DATA_DIR = "resume_data"
 
 EMPTY_PROFILE = {
@@ -726,32 +728,17 @@ def cmd_home(args):
 
 # --------------------------------------------------------------------- cli
 
-class AxiParser(argparse.ArgumentParser):
-    """argparse that fails loud in the AXI style: on stdout, with the
-    command's own valid flags spelled out, and exit code 2."""
-
-    def error(self, message):
-        flags = []
-        positional = []
-        for action in self._actions:
-            for option in action.option_strings:
-                if option not in ("-h", "--help"):
-                    flags.append(option)
-            if not action.option_strings and not isinstance(action, argparse._SubParsersAction):
-                positional.append(action.dest)
-        hint = f"valid flags for `{self.prog}`: {', '.join(flags)}" if flags else None
-        if positional:
-            hint = (hint + "; " if hint else "") + "arguments: " + ", ".join(positional)
-        axi.fail(message, hint=hint, code=2)
+class AxiParser(axi.AxiParser):
+    """Kept as a local alias so the parser reads the same everywhere."""
 
 
 def main():
     base_parser = AxiParser(add_help=False)
     base_parser.add_argument("--data-dir", default=argparse.SUPPRESS,
                               help="Base directory for persistent data (default: ./resume_data)")
-    base_parser.add_argument("-v", "-V", "--version", action="version", version=axi.VERSION)
+    axi.add_version(base_parser)
 
-    parser = AxiParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter,
+    parser = AxiParser(description=DESCRIPTION, formatter_class=argparse.RawDescriptionHelpFormatter,
                         parents=[base_parser])
     sub = parser.add_subparsers(dest="entity")
 

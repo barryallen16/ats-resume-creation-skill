@@ -20,15 +20,24 @@ Usage:
     python3 scripts/keyword_audit.py --content resume_content.json --jd job_description.txt --profile resume_data/profile.json
 
 Exit code is always 0 (findings are advisory). Never paste keywords the
-candidate doesn't have just to clear the missing list — record those as
+candidate doesn't have just to clear the missing list -- record those as
 gaps instead (see SKILL.md).
 """
 
 import argparse
 import collections
 import json
+import os
 import re
 import sys
+
+_HERE = os.path.dirname(os.path.abspath(__file__))
+if _HERE not in sys.path:
+    sys.path.insert(0, _HERE)
+
+import axi  # noqa: E402  (needs the sys.path.insert above)
+
+DESCRIPTION = "Audit a tailored resume against a job description for keyword coverage"
 
 STOPWORDS = {
     "the", "and", "for", "with", "you", "your", "our", "are", "will", "have",
@@ -101,9 +110,27 @@ def count_occurrences(blob_lower, term_lower):
     return len(re.findall(pat, blob_lower))
 
 
+def read_json_file(path, label):
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        axi.fail(f"{label} not found: {path}", hint=f"Pass a readable path for {label}")
+    except json.JSONDecodeError as e:
+        axi.fail(f"{label} is not valid JSON: {e}", hint=f"Check it with `python3 -m json.tool {path}`")
+
+
+def read_text_file(path, label):
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        axi.fail(f"{label} not found: {path}", hint=f"Pass a readable path for {label}")
+
+
 def main():
-    ap = argparse.ArgumentParser(description=__doc__,
-                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = axi.AxiParser(description=DESCRIPTION,
+                        formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--content", required=True, help="Path to resume_content.json")
     ap.add_argument("--jd", required=True, help="Path to job_description.txt")
     ap.add_argument("--profile", required=False, default=None,
@@ -112,12 +139,14 @@ def main():
                     help="Min JD occurrences for a term to be reported (default: 2)")
     ap.add_argument("--stuff-limit", type=int, default=8,
                     help="Resume occurrences above this flag stuffing risk (default: 8)")
+    ap.add_argument("--max-terms", type=int, default=40,
+                    help="Max JD terms to check (default: 40)")
+    ap.add_argument("--json", action="store_true", help="Print raw JSON instead of TOON")
+    axi.add_version(ap)
     args = ap.parse_args()
 
-    with open(args.content, "r", encoding="utf-8") as f:
-        content = json.load(f)
-    with open(args.jd, "r", encoding="utf-8") as f:
-        jd_text = f.read()
+    content = read_json_file(args.content, "--content")
+    jd_text = read_text_file(args.jd, "--jd")
     blob = resume_blob(content)
     blob_lower = blob.lower()
     jd_lower = jd_text.lower()
@@ -135,7 +164,7 @@ def main():
     candidates = sorted(
         ((t, c) for t, c in freq.items() if c >= args.min_jd_count),
         key=lambda kv: (-kv[1], kv[0]),
-    )[:40]
+    )[: args.max_terms]
 
     missing, underrep = [], []
     for term, jd_count in candidates:
@@ -148,15 +177,21 @@ def main():
     # --- Abbreviation / full-form check ---
     abbrev_notes = []
     for short, full in ABBREV_PAIRS:
-        in_jd = short in freq or full in jd_lower
-        if not in_jd:
+        short_in_jd = short in freq
+        full_in_jd = full in jd_lower
+        if not (short_in_jd or full_in_jd):
             continue
         s_hit = count_occurrences(blob_lower, short) > 0
         f_hit = count_occurrences(blob_lower, full) > 0
         if s_hit and not f_hit:
-            abbrev_notes.append(f"'{short}' appears without full form '{full}' — spell it out once.")
-        elif f_hit and not s_hit:
-            abbrev_notes.append(f"'{full}' appears without '{short}' — pairing helps both parsers and skimmers.")
+            abbrev_notes.append(f"'{short}' appears without full form '{full}' - spell it out once.")
+        elif f_hit and not s_hit and short_in_jd:
+            # Only worth asking for the short form when the job description
+            # used it - "k8s" is not a term a resume should gain just because
+            # the JD spelled Kubernetes out.
+            abbrev_notes.append(
+                f"'{full}' appears without '{short}' - the job description used '{short}', so pair them."
+            )
 
     # --- Stuffing risk ---
     resume_tok_freq = collections.Counter(t.lower() for t in tokenize(blob))
@@ -168,6 +203,7 @@ def main():
 
     # --- Excluded-skill leaks ---
     leaks = []
+    warnings = []
     if args.profile:
         try:
             with open(args.profile, "r", encoding="utf-8") as f:
@@ -176,9 +212,9 @@ def main():
                 if skill and count_occurrences(blob_lower, skill.lower()) > 0:
                     leaks.append(skill)
         except FileNotFoundError:
-            print(f"Warning: profile not found at {args.profile}", file=sys.stderr)
+            warnings.append(f"profile not found at {args.profile} - excluded-skill leaks were not checked")
         except json.JSONDecodeError as e:
-            print(f"Warning: profile JSON invalid: {e}", file=sys.stderr)
+            warnings.append(f"profile JSON invalid ({e}) - excluded-skill leaks were not checked")
 
     # --- Light content checks ---
     checks = []
@@ -209,45 +245,50 @@ def main():
             checks.append(f"Unknown section_order entries: {unknown}.")
 
     # --- Report ---
-    print(f"Keyword audit: {len(candidates)} JD terms checked (min JD count {args.min_jd_count}).")
-    print("No numeric ATS score is given — semantic fit and honesty outrank counts.")
-    print()
+    out = {
+        "audit": {
+            "jd_terms_checked": len(candidates),
+            "min_jd_count": args.min_jd_count,
+            "missing": len(missing),
+            "underrepresented": len(underrep),
+            "abbreviation_notes": len(abbrev_notes),
+            "stuffing_risk": len(stuffing),
+            "excluded_skill_leaks": len(leaks),
+            "content_checks": len(checks),
+        },
+        "note": "No numeric ATS score is given - semantic fit and honesty outrank counts.",
+    }
+    if warnings:
+        out["warnings"] = warnings
     if missing:
-        print("MISSING (in JD, absent in resume — add only if genuinely true, else log as gap):")
-        for term, c in missing:
-            print(f"  - {term} (JD x{c})")
-    else:
-        print("MISSING: none at this threshold.")
-    print()
+        out["missing"] = [{"term": t, "jd_count": c} for t, c in missing]
     if underrep:
-        print("UNDERREPRESENTED (JD emphasizes, resume mentions once):")
-        for term, jc, rc in underrep:
-            print(f"  - {term} (JD x{jc}, resume x{rc})")
-    else:
-        print("UNDERREPRESENTED: none.")
-    print()
+        out["underrepresented"] = [
+            {"term": t, "jd_count": jc, "resume_count": rc} for t, jc, rc in underrep
+        ]
     if abbrev_notes:
-        print("ABBREVIATION HYGIENE:")
-        for n in abbrev_notes:
-            print(f"  - {n}")
-        print()
+        out["abbreviation_hygiene"] = abbrev_notes
     if stuffing:
-        print("STUFFING RISK (repeated heavily — trim or vary):")
-        for term, c in stuffing:
-            print(f"  - {term} (resume x{c})")
-        print()
+        out["stuffing_risk"] = [{"term": t, "resume_count": c} for t, c in stuffing]
     if leaks:
-        print("EXCLUDED-SKILL LEAKS (in excluded_skills but present in resume):")
-        for s in leaks:
-            print(f"  - {s}")
-        print()
+        out["excluded_skill_leaks"] = leaks
     if checks:
-        print("CONTENT CHECKS:")
-        for c in checks:
-            print(f"  - {c}")
-        print()
-    if not (missing or underrep or abbrev_notes or stuffing or leaks or checks):
-        print("Clean: no findings at current thresholds.")
+        out["content_checks"] = checks
+    if not (missing or underrep or abbrev_notes or stuffing or leaks or checks or warnings):
+        out["clean"] = True
+
+    if args.json:
+        print(json.dumps(out, indent=2, ensure_ascii=False))
+        return 0
+
+    hints = []
+    if missing or underrep:
+        hints.append("Add a term only when the candidate genuinely has that experience - "
+                     "otherwise record it as a gap in the change log")
+    if checks:
+        hints.append("Fix the content checks in resume_content.json, then re-run this audit")
+    hints.append("Run `python3 scripts/build_resume_docx.py --content <file> --pdf` once the content is settled")
+    axi.emit(out, hints=hints)
     return 0
 
 

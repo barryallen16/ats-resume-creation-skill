@@ -19,6 +19,7 @@ Exit codes used by every script here:
     2  usage error (unknown flag, missing required flag, bad value)
 """
 
+import argparse
 import math
 import os
 import re
@@ -331,6 +332,35 @@ def fail(message, hint=None, code=1):
 
 def usage_error(message, hint=None):
     fail(message, hint, code=2)
+
+
+class AxiParser(argparse.ArgumentParser):
+    """argparse that fails loud in the AXI style: on stdout, with the
+    command's own valid flags spelled out, and exit code 2.
+
+    A dropped flag is worse than an error -- the agent would read
+    plausible-looking output it believes is filtered, and act on it.
+    """
+
+    def error(self, message):
+        flags = []
+        positional = []
+        for action in self._actions:
+            for option in action.option_strings:
+                if option not in ("-h", "--help"):
+                    flags.append(option)
+            if not action.option_strings and not isinstance(action, argparse._SubParsersAction):
+                positional.append(action.dest)
+        hint = f"valid flags for `{self.prog}`: {', '.join(flags)}" if flags else None
+        if positional:
+            hint = (hint + "; " if hint else "") + "arguments: " + ", ".join(positional)
+        fail(message, hint=hint, code=2)
+
+
+def add_version(parser):
+    """Give a parser the bare --version fast path (AXI: instant identity check)."""
+    parser.add_argument("-v", "-V", "--version", action="version", version=VERSION)
+    return parser
 
 
 def bin_path(argv0=None):
