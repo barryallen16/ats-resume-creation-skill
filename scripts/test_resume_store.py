@@ -186,6 +186,15 @@ class TestApplications(StoreTestCase):
         self.assertIn("Acme Corp", result.stdout)
         self.assertIn("status: drafted", result.stdout)
 
+    def test_view_accepts_quotes_around_a_ref(self):
+        """TOON quotes a ref that looks like a number; the lookup must still work."""
+        added = self.add_application()
+        ref = next(ln.split(": ", 1)[1] for ln in added.stdout.splitlines()
+                   if ln.startswith("ref: ")).strip('"')
+        result = self.run_store("app", "view", f'"{ref}"')
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("Acme Corp", result.stdout)
+
     def test_view_truncates_long_text_and_reports_the_total(self):
         long_jd = "x" * 5000
         jd = self.write("long.txt", long_jd)

@@ -386,7 +386,12 @@ def app_ref(row):
 
 
 def resolve_app(index, ident):
-    """Find one application by full id, unique prefix, or short ref."""
+    """Find one application by full id, unique prefix, or short ref.
+
+    The ident is stripped of surrounding quotes because TOON quotes a
+    string that looks like a number, and a ref can be all digits.
+    """
+    ident = ident.strip().strip('"').strip("'")
     exact = [row for row in index if row.get("id") == ident]
     if exact:
         return exact[0]
