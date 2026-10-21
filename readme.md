@@ -37,9 +37,9 @@ resume-builder/
 ## Requirements
 
 - Python 3.8+
-- [`python-docx`](https://python-docx.readthedocs.io/) - `pip install -r requirements.txt`
+- [`python-docx`](https://python-docx.readthedocs.io/) - `uv sync` installs it
 - [LibreOffice](https://www.libreoffice.org/) (`soffice` on `PATH`) - optional,
-  only needed for the `.docx` → `.pdf` conversion step. Without it you still
+  only needed for the `.docx` -> `.pdf` conversion step. Without it you still
   get a complete, valid `.docx`.
 
 Every other script is stdlib-only.
@@ -52,7 +52,7 @@ git clone https://github.com/barryallen16/ats-resume-creation-skill.git
 cd ats-resume-creation-skill
 
 # 2. Install the Python dependency
-uv venv && uv pip install -r requirements.txt   # or: pip install -r requirements.txt
+uv sync                                  # or: pip install python-docx
 
 # 3. (optional) Install LibreOffice for PDF conversion
 sudo apt-get install libreoffice      # Debian/Ubuntu
@@ -139,11 +139,11 @@ Errors print on stdout as `error: <what went wrong>` plus
 ## Development
 
 ```bash
-uv venv && uv pip install -r requirements.txt
-uvx ruff check scripts/                  # lint
-python3 scripts/test_axi.py              # TOON encoder unit tests
-python3 scripts/test_resume_store.py     # profile + tracker CLI tests
-python3 scripts/test_cli.py              # audit, docx builder, tracker push tests
+uv sync                                  # installs python-docx + ruff
+uv run ruff check scripts/               # lint
+uv run python scripts/test_axi.py        # TOON encoder unit tests
+uv run python scripts/test_resume_store.py   # profile + tracker CLI tests
+uv run python scripts/test_cli.py        # audit, docx builder, tracker push tests
 ```
 
 ## Data persistence layout

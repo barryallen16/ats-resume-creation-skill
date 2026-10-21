@@ -651,7 +651,7 @@ def main():
     except DocxMissing:
         axi.fail(
             "python-docx is not installed",
-            hint="Install it with `pip install -r requirements.txt` (or `uv pip install python-docx`)",
+            hint="Install it with `uv sync` (or `pip install python-docx`)",
         )
 
     written = {"docx": os.path.abspath(docx_path)}
