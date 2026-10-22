@@ -14,6 +14,19 @@ font substitution. `scripts/build_resume_docx.py` bakes all of these in
 once, so every resume this skill produces is automatically compliant
 instead of being re-derived (and possibly re-broken) each time.
 
+## Automated Execution (Recommended)
+
+In the standard workflow, `scripts/pipeline.py run` automates Step 1 through Step 5
+in a single command, automatically compiling, verifying the page count deterministically,
+running keyword audits, checking hyphen extraction, and archiving:
+
+```bash
+python3 scripts/pipeline.py run --content resume_content.json --jd job_description.txt \
+  --company "Acme Corp" --role "Backend Engineer"
+```
+
+If you need to run steps manually or customize build parameters, follow Steps 1–5 below.
+
 ## Step 1: Produce a `resume_content.json`
 
 Build the tailored content dictionary described in `data_schemas.md`
@@ -34,8 +47,7 @@ python3 scripts/build_resume_docx.py --content resume_content.json --out resume.
 # mirroring the docx — useful for diffs, never submitted to portals.
 ```
 
-Run the keyword audit before visual verification (advisory findings, never
-a numeric score):
+Run the keyword audit before finalizing (advisory findings, never a numeric score):
 
 ```bash
 python3 scripts/keyword_audit.py --content resume_content.json --jd job_description.txt
@@ -56,33 +68,28 @@ If LibreOffice truly isn't available in the target environment, `resume.docx`
 is still a complete, valid deliverable on its own — PDF conversion is a
 nice-to-have for submission, not a requirement for the docx to be correct.
 
-## Step 3: Verify visually before calling it done
+## Step 3: Verify page budget and layout deterministically (Zero Vision Tokens)
 
-Never skip this — a docx that "should" render fine can still overflow to a
-second page or have a page-break slice through content. Render it to an
-image and actually look:
+Never burn expensive multimodal LLM tokens viewing image renders (`pdftoppm`) just to check page count.
+Verify the page budget deterministically via PDF structure / metadata:
 
 ```bash
-pdftoppm -jpeg -r 100 resume.pdf page
+# Deterministic page count check (0 LLM tokens):
+pdfinfo resume.pdf | grep Pages
+# Or: python3 -c "import re; print(len(re.findall(rb'/Type\s*/Page\b', open('resume.pdf','rb').read())))"
 ```
 
-Then view `page-1.jpg` (and `page-2.jpg` if it exists — if there's a page
-2, that's the signal to trim). Confirm:
-- Exactly one page (`pdfinfo resume.pdf | grep Pages` should say `1`)
+Confirm:
+- Exactly one page (`Pages: 1`)
 - No obviously cut-off text at the bottom margin
-- The right-aligned dates in Work Experience/Education actually line up
-  against the right margin
-- The top third of page 1 makes the case on its own — cover the rest and read
-  just that slice (headline, summary, skills, the first role's first bullets);
-  it should still name the target role and show one quantified win (see
-  `resume_writing_rules.md` section 14)
+- The right-aligned dates in Work Experience/Education line up against the right margin
+- The top third of page 1 makes the case on its own (headline, summary, skills, first role's first bullets)
 
-Then confirm the ATS view — extract the PDF's text exactly as a parser sees it:
+Then confirm the ATS text extraction view — extract the PDF's text exactly as a parser sees it:
 
 ```bash
 pdftotext resume.pdf - | head -n 60
-# pdftotext ships with poppler, same package as pdftoppm/pdfinfo above —
-# no new install.
+# pdftotext ships with poppler, same package as pdfinfo above — no new install.
 ```
 
 Confirm:

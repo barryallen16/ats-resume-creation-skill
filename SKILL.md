@@ -3,335 +3,208 @@ name: resume-builder
 description: Use this skill to CREATE a tailored, ATS-friendly software engineer resume (and optionally a cover letter) as a .docx/.pdf file - not to review, critique, or score an existing one. Trigger on requests like "write my resume for this job", "build me a FAANG-style resume", "tailor my resume to this job description", "make a resume for [Company]'s [Role] posting", "create an ATS-friendly resume", or any request whose deliverable is a new or updated resume file. Also handles keeping a persistent profile of the candidate's full work history so future resumes can be tailored quickly without re-collecting everything from scratch, and logging every resume actually generated (with company, role, job description, and date) so past applications can be tracked and duplicate applications flagged. Do not use this for resume review/feedback/ATS-scoring of an already-written resume - that is a different task.
 ---
 
-# Resume Builder
+# Resume Builder (Fast 2-Step Agent Architecture)
 
-Creates tailored, ATS-friendly resumes for software engineering (and
-adjacent) roles, end to end: gather/reuse the candidate's background,
-tailor it to a specific job description, generate the actual `.docx` and
-`.pdf` files, and keep a durable record of both the candidate's full
-history and every application produced.
+Creates tailored, ATS-friendly resumes for software engineering (and adjacent) roles end to end:
+tailors background to a job description, compiles `.docx` and `.pdf`, verifies page limits deterministically with **zero vision tokens**, records the application, and archives the output.
 
-This skill is for **creation**, not critique. If someone hands you a
-finished resume and asks "how's this / what's wrong with it / will this
-pass ATS", that's a review task - this skill's rules and scripts are
-built around producing new content, not scoring existing content.
+> [!IMPORTANT]
+> **Token Optimization Contract**: All critical drafting rules, banned verbs, engineering bullet formulas, and data schemas are **fully self-contained in this file**. You do **NOT** need to read external files in `references/` during routine drafting. Do **NOT** generate separate `strategy.txt`, `gaps.txt`, or `changelog.txt` files unless the user explicitly asks for them.
 
-## Why persistence and tracking matter here
+---
 
-A resume is never really "done" - the same candidate will tailor a dozen
-versions across a job search, and doing the intake interview from zero
-each time is exactly the kind of repeated, avoidable work an agent should
-eliminate. So this skill keeps two things on disk across sessions:
+## Fast 2-Turn Workflow
 
-1. A **profile** - the candidate's complete work history, which only ever
-   grows (new jobs, new bullets, new projects get merged in, nothing is
-   thrown away just because today's resume didn't use it).
-2. An **application tracker** - a record of every resume actually
-   generated, with the job description, company, role, and date it was
-   made, so the candidate (or you, next session) can answer "did I
-   already apply here?" or "what did I send this company?"
+```mermaid
+flowchart LR
+    A["1. Check & Load<br><code>pipeline.py check</code>"] --> B["2. Tailor Content<br>Draft <code>resume_content.json</code>"]
+    B --> C["3. Execute Pipeline<br><code>pipeline.py run</code>"]
+    C --> D["Done!<br>Verified 1-page PDF"]
+```
 
-## The scripts at a glance
+### Turn 1: Pre-Draft Check & Load Candidate Profile
+Run the pre-draft check to confirm profile availability and verify no duplicate application exists:
 
-Every script prints **TOON** (a compact, tab-separated form of JSON) and
-follows one exit-code contract:
+```bash
+python3 scripts/pipeline.py check --company "Acme Corp" --role "Backend Engineer"
+```
+- If an exact duplicate exists (exit code 1): Stop and confirm with candidate before proceeding (or pass `--force` to `run`).
+- If profile is missing: Interview candidate, write `new_info.json`, and run `python3 scripts/resume_store.py profile update --json new_info.json`.
+- Read `resume_data/profile.json` (or review stats from `check`).
 
-| Code | Meaning |
+### Turn 2: Tailor & Execute Unified Pipeline
+Draft `resume_content.json` following the writing rules below. Then run the automated build, layout verification, audit, and recording pipeline in **one single command**:
+
+```bash
+python3 scripts/pipeline.py run --content resume_content.json --jd job_description.txt \
+  --company "Acme Corp" --role "Backend Engineer"
+```
+
+What `pipeline.py run` executes automatically:
+1. Compiles ATS-compliant `.docx` and `.pdf` (via LibreOffice). Add `--md` or `--txt` if requested.
+2. **Deterministic Page-Budget Check**: Verifies PDF page count (target 1 page). If it overflows, exits code 1 with exact advice on trimming bullets — **no vision or image tokens needed**.
+3. **ATS Hyphen Check**: Ensures line-end hyphens survived PDF extraction intact.
+4. **Keyword Audit**: Reports missing must-have terms and flags any `excluded_skills` leaks.
+5. **Durable Recording**: Stores copy under `resume_data/applications/<id>/` and updates tracker index.
+6. **Desktop Archive**: Copies PDF to `~/Desktop/resume-applications/<DD>-<mmm>/<First_Last>_<Role>.pdf`.
+7. **Web Tracker Sync**: Updates phone tracker at `/tracker/` (gracefully skips if offline).
+
+In your final response to the user, provide a friendly completion summary and include 2-4 bullet points under **Gaps & Verification Notes** if any unverified numbers or missing JD requirements exist.
+
+---
+
+## Resume Writing Rules & Quality Standards
+
+### 1. Formatting Constraints (Enforced by Script & Page Budget)
+- **Page Budget**: Strict **1 page** for early-to-mid career (<8 years). **2 pages permitted only for Staff+, Principal, Architects, or 8+ years** (page 2 must fill at least 60%; never allow a 2-3 line spillover). If an overflow occurs, cut the single weakest bullet.
+- **ATS Safety**: Single-column body layout only. No tables, text boxes, columns, headers/footers, or graphics. Standard fonts only (Calibri, Arial, Garamond), 10pt minimum body text.
+
+### 2. Section Order by Seniority
+
+ATS parsers require standard headings. Choose `section_order` based on JD seniority:
+
+| Seniority Signal | Section Order (after contact + headline/summary) |
 |---|---|
-| 0 | success, including no-ops |
-| 1 | blocked - the action needs a decision from the candidate |
-| 2 | usage error - unknown flag, missing flag, bad value |
+| **New Grad / Intern / <3 years** | Skills, Education, Projects, Work Experience, Awards |
+| **Mid-level / Default** | Skills, Work Experience, Education, Projects, Awards |
+| **Senior / Staff / 8+ years** | Skills, Work Experience, Projects (architecture-heavy first), Education, Awards |
 
-Errors go to **stdout** as `error: <what went wrong>` + `help: <the exact
-command that fixes it>`. Every response ends with a `help[N]:` block of
-next steps. `profile show`, `app list` and `keyword_audit` take `--json`
-for raw JSON.
+Standard heading names: `Skills`, `Work Experience`, `Education`, `Projects`, `Awards, Accolades and Certifications`.
 
-```bash
-python3 scripts/resume_store.py                          # dashboard: live state
-python3 scripts/resume_store.py profile show             # full candidate history
-python3 scripts/resume_store.py app list                 # every application
-python3 scripts/resume_store.py app view <ref>           # one application
+### 3. Headline & Summary Formula
+- **Headline**: Replaces generic "Professional Summary". Aim for under 10 words, role-first, signaling depth or specialty:
+  *e.g. "Senior Backend Engineer, 6 years scaling payments on Go/Postgres"*
+- **Summary**: Maximum ~50 words. Active voice, role-targeted, written LAST. Distills verified accomplishments; never repeats the headline.
+
+### 4. Contact Information
+Single line, pipe-separated (`|`): Full Name, personal phone, city/state, personal email, LinkedIn, optional GitHub/portfolio. Never include full street addresses, company emails, or photos.
+
+### 5. Skills Section
+Group by category, separated by colons and pipes:
+`Languages: Java | Go | Python | SQL`
+- **Excluded Skills**: Legacy technologies listed in profile `excluded_skills` (e.g. jQuery, SVN) must be suppressed during tailoring unless explicitly demanded by the JD.
+
+---
+
+### 6. Work Experience & The 2026 Grounded Engineering Formula
+
+Format header: `Company, Location | Title | MM/YYYY - MM/YYYY (or Present)`.
+Every bullet under a job must strictly follow the **Grounded Engineering Formula**:
+
+$$\mathbf{[Active\ Technical\ Verb]} + \mathbf{[System\ Context\ \&\ Challenge]} + \mathbf{[Architecture\ /\ Tool\ Choice]} + \mathbf{[Verifiable\ Outcome\ /\ Scale]}$$
+
+#### Zero Fabrication Policy (Hard Constraint)
+Never invent numbers, tools, or ownership. Every metric must trace to `profile.json` or explicit candidate confirmation. If a metric is unverified, keep the honest wording and flag it under **Verification Notes** in your chat response. Treat `agent_notes` in the profile as binding scope boundaries.
+
+#### Anti-"AI Slop" Guidelines (2026 Standards)
+- **Banned Generic Filler Verbs**: Do NOT use *"leveraged"*, *"spearheaded"*, *"orchestrated"*, *"championed"*, *"pioneered"*, or *"utilized"*. Avoid robotic corporate buzzwords: *"delve"*, *"tapestry"*, *"multifaceted"*, *"game-changer"*, *"cutting-edge"*.
+- **Required Technical Verbs**: Use precise engineering action verbs: *"Architected"*, *"Profiled"*, *"Refactored"*, *"Migrated"*, *"Benchmarked"*, *"Decomposed"*, *"Hardened"*, *"Provisioned"*, *"Automated"*.
+- **Anchor with Real Engineering Units**:
+  - Throughput/Latency: QPS, concurrent connections, P99/P95 latency in ms.
+  - Financial/FinOps: AWS/GCP cloud spend cut by $X/month, GPU hours reduced.
+  - Data Scale: DB volume (GB/TB), daily active records processed.
+  - Reliability: Error rate dropped from X% to Y%, SLA uptime achieved.
+- **Explain the Architectural "Why"**: e.g., *"decoupled checkout via Kafka to eliminate synchronous database locks"*.
+
+#### Humanization / De-AI Checklist
+- [ ] No banned filler verbs in any section.
+- [ ] No two adjacent bullets open with the same verb or grammatical structure.
+- [ ] Sentence lengths vary; rhythmic variety across bullets.
+- [ ] Third-person telegraphic: drop "I", "my", "we", and needless articles.
+- [ ] Understated numbers: never round up (e.g., 6.7 is "over 6.5", never "nearly 7").
+- [ ] Cut filler phrases on sight: *in order to* $\rightarrow$ *to*, *responsible for* $\rightarrow$ *built/led*, *at this point in time* $\rightarrow$ *now*.
+
+---
+
+### 7. Projects, Education, Awards
+- **Projects**: 2-4 achievement bullets per project using the same engineering formula (verb + challenge + architecture + outcome). Heading: `Name, Tech1, Tech2` with optional hyperlink.
+- **Education**: Degree, grad year, school, location. Include GPA only if $\ge 3.5/4.0$.
+- **Awards**: `Year | Notable quantified win | Name of award`. Skip section if nothing genuinely relevant exists.
+
+### 8. Keyword Optimization & The Top-Third Test
+- **Contextual Co-occurrence**: Embed must-have JD tools and domain concepts inside concrete Work Experience bullets, not in disconnected keyword dumps.
+- **Surface 2026 Competencies**: Cloud FinOps / spend optimization, AI/vector search, and modern observability (OpenTelemetry, SLO/SLA management).
+- **Abbreviations**: Spell out acronyms at least once: *"Google Cloud Platform (GCP)"*, *"Amazon Web Services (AWS)"*.
+- **The Top-Third Test**: A recruiter's initial screen takes under 8 seconds. The top third of page 1 (headline, summary, skills, and current role's first bullets) must independently sell the candidacy.
+
+### 9. What Never Belongs
+Omit photos, date of birth, age, marital status, full street addresses, salary history/expectations, generic hobbies, and "References available on request".
+
+### 10. Optional Cover Letter
+If requested: Keep under 1 page, reader benefit first, address a named human, develop one specific story, and close with a date-owned next step.
+
+---
+
+## Data Schemas
+
+### `resume_content.json` (Input to `pipeline.py run`)
+
+```jsonc
+{
+  "contact": {
+    "name": "Jayadithya R",
+    "phone": "+91 ...",
+    "location": "Chennai, India",
+    "email": "name@example.com",
+    "linkedin": "linkedin.com/in/...",
+    "github": "github.com/..."
+  },
+  "headline": "Backend Engineer, 4 years scaling Go & distributed pipelines",
+  "summary": "Specialized in event-driven microservices and database query optimization. Architected Kafka pipelines cutting P99 latency by 40% at 80k QPS.",
+  "skills": [
+    {"category": "Languages", "items": ["Go", "Python", "SQL"]},
+    {"category": "Infrastructure", "items": ["AWS", "Docker", "PostgreSQL", "Kafka"]}
+  ],
+  "experience": [
+    {
+      "company": "Acme Cloud",
+      "location": "Bengaluru, India",
+      "title": "Software Engineer",
+      "start": "03/2023",
+      "end": "Present",
+      "bullets": [
+        "Architected Kafka event streams to decouple checkout from inventory, achieving zero message loss during peak sales at 80k QPS.",
+        "Profiled relational queries and re-indexed PostgreSQL partitions, reducing RDS CPU utilization by 35%."
+      ]
+    }
+  ],
+  "education": [
+    {
+      "degree": "B.Tech in Computer Science",
+      "school": "University Name",
+      "location": "City, India",
+      "grad_year": "2024",
+      "achievements": []
+    }
+  ],
+  "projects": [
+    {
+      "name": "CacheEngine",
+      "tech": ["Go", "Raft"],
+      "url": "github.com/user/cache-engine",
+      "bullets": [
+        "Engineered an in-memory key-value cache with consistent hashing and leader election, sustaining 65k read QPS."
+      ]
+    }
+  ],
+  "awards": [],
+  "section_order": [
+    "contact", "headline_summary", "skills", "experience", "education", "projects", "awards"
+  ]
+}
 ```
 
-## Workflow
+### `profile.json` (Master Record under `<data-dir>/profile.json`)
+The candidate's cumulative work history. Structure matches `resume_content.json`, but contains **all** past accomplishments, `excluded_skills: [...]`, and optional binding `agent_notes: "..."` per job/project. Update incrementally with:
+`python3 scripts/resume_store.py profile update --json new_info.json`.
 
-### 1. Load (or start) the candidate's profile
+---
 
-Check for `resume_data/profile.json` (see `references/data_schemas.md` for
-its shape):
+## Utility Scripts Reference
 
-```bash
-python3 scripts/resume_store.py profile show
-```
-
-- **If it exists**: read it. This is most of the intake done already -
-  only ask the candidate about anything genuinely missing or stale (a new
-  job since last time, a project they haven't mentioned, etc.). Use
-  `profile show --summary` first if you only need the shape of the
-  history (job list + counts) rather than every bullet.
-- **If it's empty/missing**: interview the candidate for their full
-  background - not just what might fit one resume, but everything: every
-  job with every accomplishment they can recall (push for quantified
-  outcomes - see `references/resume_writing_rules.md` section 6),
-  education, projects, awards, contact info. Write it as a JSON file
-  and merge it in:
-
-```bash
-python3 scripts/resume_store.py profile update --json new_info.json
-```
-
-Do this same `profile update` step any time you learn something new during
-a conversation (a job the candidate mentions in passing, a bullet they add
-while reviewing a draft) - don't let it live only in that one resume.
-
-### 2. Get the job description for this specific application
-
-Ask for (or fetch, if a URL/file is given) the job posting text, plus the
-company name and role title. Before drafting, check whether this exact
-company + role has already been done:
-
-```bash
-python3 scripts/resume_store.py app check-duplicate --company "Acme Corp" --role "Backend Engineer"
-```
-
-Exit code 0 means clear to proceed. Exit code 1 means an **exact
-duplicate** exists - the output names the existing application, its
-status and its resume path. Stop and confirm with the candidate before
-regenerating (per `resume_writing_rules.md` section 13, applying
-repeatedly at one company can itself hurt a candidacy) - don't silently
-regenerate. A `near_matches` section in the output is advisory only:
-mention it, but it does not block.
-
-### 3. Tailor the content
-
-Read `references/resume_writing_rules.md` in full before drafting - it
-covers section order, exact heading names, how to write the
-headline/summary, how to phrase accomplishment bullets, and - critically -
-how to mine the job description for the keywords that actually matter for
-ATS ranking. Then build a `resume_content.json` (schema in
-`references/data_schemas.md`) by selecting and rewording the best-fitting
-subset of `profile.json` for this job description. This is the step where
-judgment matters most: which 2-4 bullets per job are the strongest fit,
-which projects to surface, how to reorder skills.
-
-Sequencing rule: do NOT draft a single bullet until JD analysis and
-strategy are written down (even briefly):
-- **JD analysis:** required vs preferred skills, top keywords/concepts,
-  seniority signal, team structure if stated, domain language.
-- **Strategy:** top 3 strengths to lead with, what to downplay or suppress
-  (see `excluded_skills`), `section_order` per seniority table, page target.
-  These strengths have to land in the **top third of page 1** — a recruiter's
-  first screen averages under ~8 seconds, so the headline, summary, skills,
-  and the current role's first bullets must sell the candidacy on their own
-  before anything below them is read (see `references/resume_writing_rules.md`
-  section 14).
-- **Content + humanization:** draft bullets (zero-fabrication policy:
-  trace every number to the profile or flag Verify), then run the
-  humanization checklist in `resume_writing_rules.md` section 6.
-
-Deliver two short artifacts with every resume (chat or markdown file):
-- **Gap summary:** honest DEAL-BREAKER / SIGNIFICANT / MINOR gaps the
-  resume cannot fix. E.g. "JD requires Kubernetes - zero K8s in profile.
-  Highlighted Docker as closest proxy; study K8s before interview." Never
-  invent experience to close a gap; suggest cover-letter framing instead.
-- **Change log:** every rewritten bullet / keyword injection with reason
-  plus confidence (`confirmed` from profile vs `verify this number` vs
-  `quantification opportunity`). The candidate owns every number.
-
-### 4. Generate the docx, then the PDF
-
-Read `references/docx_creation.md` for the full procedure and the ATS
-formatting rationale, then:
-
-```bash
-python3 scripts/build_resume_docx.py --content resume_content.json --out resume.docx --pdf
-# --out omitted: defaults to {First}_{Last}_Resume.docx (+ .pdf), e.g.
-# Jane_Doe_Resume.pdf - use that friendly name for the actual submission.
-# The slug+hash folder under resume_data/applications/ is internal tracking.
-# Add --md for a version-control-friendly markdown source next to the docx.
-# Add --txt for paste-ready plain text (one line per paragraph, never
-# soft-wrapped) — copy from THIS, not from the PDF, when a portal asks for
-# pasted text. Copying out of a PDF bakes the renderer's line breaks into the
-# clipboard, and the portal then saves them as hard newlines mid-bullet.
-```
-
-Run the deterministic keyword audit before treating the draft as final
-(audit, never a fake 0-100 score):
-
-```bash
-python3 scripts/keyword_audit.py --content resume_content.json --jd job_description.txt
-```
-
-The audit reports `missing`, `underrepresented`, `abbreviation_hygiene`,
-`stuffing_risk`, `excluded_skill_leaks` and `content_checks`. Fix genuine
-gaps by grounding terms in real experience - never paste keywords the
-candidate doesn't have. Then visually verify the rendered PDF (procedure
-in `references/docx_creation.md`) before treating it as final - confirm
-it's exactly one page, nothing is cut off, and the top third of page 1
-still makes the case by itself (the top-third test in
-`references/resume_writing_rules.md` section 14).
-
-Then check that the PDF's text layer is clean:
-
-```bash
-python3 scripts/ats_hyphen_check.py --content resume_content.json --pdf resume.pdf
-```
-
-A hyphenated word that lands at a line end gets de-hyphenated by the text
-layer: "first-author" extracts as "firstauthor" or "fix- explanation", and a
-keyword matcher then misses it. The script flags every hyphenated word in the
-content that does not survive extraction. Reword (or rewrap) and rebuild until
-it reports clean. Both "first-author" and "fix-explanation" have actually
-broken this way in real drafts, so run it every time.
-
-### 5. Record the application
-
-Once the resume is finalized for this specific company/role:
-
-```bash
-python3 scripts/resume_store.py app add \
-  --company "Acme Corp" --role "Backend Engineer" \
-  --jd-file job_description.txt \
-  --resume-docx resume.docx --resume-pdf resume.pdf \
-  --strategy-file strategy.txt --gaps-file gaps.txt \
-  --changelog-file changelog.txt \
-  --status drafted
-```
-
-This copies the job description and both resume files into a dedicated
-folder under `resume_data/applications/<id>/` and adds a row to the
-tracker index - see `references/data_schemas.md` for exactly what's
-stored. The command refuses to record a second application for the same
-company + role (exit code 1, naming the existing one) - if the candidate
-has confirmed they want to apply again, re-run with `--force`.
-
-Update the status later as the candidate hears back:
-
-```bash
-python3 scripts/resume_store.py app update-status --id <ref> --status applied
-```
-
-`<ref>` is the short handle printed by `app add` (or the full id - both
-work). Valid statuses: `drafted`, `applied`, `interviewing`, `offer`,
-`rejected`, `withdrawn`.
-
-### 5b. Sync to the Grey Matter web tracker
-
-After `app add` or `update-status`, push the changes to the candidate's
-web tracker (phone-visible at greymatter.isroot.in/tracker/):
-
-```bash
-python3 scripts/tracker_push.py                          # local API (default http://127.0.0.1:8080)
-python3 scripts/tracker_push.py --url https://greymatter.isroot.in   # VPS
-```
-
-It merges `applications_index.json` into the web tracker, keyed by
-application id - re-running is safe and updates statuses in place
-(never duplicates). It also uploads each application's resume PDF/DOCX
-(as `<id>.pdf` / `<id>.docx`) so they are viewable on the tracker row
-and under Files. Do this as the last step of any application
-workflow, after the status is final for this session.
-
-### 5c. Archive the PDF into the dated applications folder
-
-Every finished resume PDF also gets a copy in the candidate's own archive on
-the Desktop — one folder per day, named `<day>-<3-letter month>` (e.g.
-`19-oct`, `16-oct`):
-
-```bash
-python3 scripts/archive_resume.py \
-  --pdf resume_data/applications/<id>/resume.pdf \
-  --role "Engineer, Programmer Analyst"
-```
-
-It writes to `~/Desktop/resume-applications/<DD>-<mmm>/<First_Last>_<Role>.pdf`,
-reusing the same download stem the web tracker uses for that application, so
-the archive and the tracker never disagree. The candidate's name comes from
-`profile.json`; override with `--name`, or pin the date with `--date
-YYYY-MM-DD`. Re-running just overwrites the copy. **Do this for every
-resume generated — a tailored resume that never reaches the archive folder is
-not finished.**
-
-### 6. List past applications, on request
-
-```bash
-python3 scripts/resume_store.py app list                       # everything
-python3 scripts/resume_store.py app list --company "Acme Corp"  # filtered
-python3 scripts/resume_store.py app view <ref>                 # one in detail
-```
-
-### 7. Optional: cover letter
-
-If asked for a cover letter too, follow the structure and pitfalls in
-`references/resume_writing_rules.md` section 12. Pass `--cover-letter
-<path>` to `app add` so it's stored alongside the resume for that
-application.
-
-## Where everything lives on disk
-
-```
-resume_data/                          <- persists across sessions
-├── profile.json                      <- candidate's full history
-└── applications/
-    ├── applications_index.json       <- one row per resume generated
-    └── <company>_<role>_<date>_<id>/
-        ├── job_description.txt
-        ├── resume.docx
-        ├── resume.pdf
-        └── cover_letter.docx (if produced)
-```
-
-All `resume_store.py` commands accept `--data-dir <path>` if this
-shouldn't default to `./resume_data` (e.g. a fixed location per
-candidate). The `RESUME_DATA_DIR` environment variable works too.
-
-Outside the skill, the candidate keeps a flat PDF archive of everything that
-was ever sent out:
-
-```
-~/Desktop/resume-applications/
-├── 19-oct/
-│   └── Jayadithya_R_Engineer_Programmer_Analyst.pdf
-└── 16-oct/
-    └── Jayadithya_R_AI_Developer.pdf
-```
-
-One folder per day, `<DD>-<3-letter month>`, one PDF per application inside
-it. Written by `scripts/archive_resume.py` (section 5c).
-
-## Reference files - read these, don't guess
-
-- `references/resume_writing_rules.md` - the actual content rules: section
-  order and headings, how to write every section, keyword optimization,
-  cover letter structure. **Read before drafting any content.**
-- `references/docx_creation.md` - the docx/PDF generation procedure, why
-  each ATS formatting choice exists, and the fix-it order if a resume
-  overflows one page. **Read before running `build_resume_docx.py`.**
-- `references/data_schemas.md` - exact JSON shapes for `profile.json`,
-  `resume_content.json`, and `applications_index.json`.
-
-## Scripts
-
-- `scripts/build_resume_docx.py` - turns a `resume_content.json` into a
-  `resume.docx` (and `resume.pdf` with `--pdf`, `resume.md` with `--md`).
-  Requires `python-docx` and, for PDF conversion, LibreOffice (`soffice`) on PATH.
-- `scripts/keyword_audit.py` - stdlib-only pre-submission audit: JD terms
-  missing/underrepresented in the resume, stuffing-risk flags, and
-  excluded-skill leaks. Reports findings, never a numeric "ATS score".
-- `scripts/resume_store.py` - profile persistence (`profile show|update`)
-  and application tracking (`app add|list|view|check-duplicate|update-status`).
-- `scripts/tracker_push.py` - syncs recorded applications to the Grey
-  Matter web tracker (`/tracker/`); stdlib-only, idempotent, run after
-  every `app add` / `update-status` (see section 5b).
-  Pure Python + JSON files, no external services required.
-- `scripts/archive_resume.py` - copies a finished resume PDF into
-  `~/Desktop/resume-applications/<DD>-<mmm>/<First_Last>_<Role>.pdf`;
-  stdlib-only, idempotent, run after every resume is generated
-  (see section 5c).
-- `scripts/ats_hyphen_check.py` - verifies every hyphenated word in the
-  content survives PDF text extraction, so a word broken across a line
-  break never reaches an ATS as "firstauthor"; stdlib-only plus `pdftotext`,
-  run before calling a resume final (see section 4).
-- `scripts/axi.py` - shared output layer: the TOON encoder and the
-  error/exit-code conventions every script follows.
+- `scripts/pipeline.py` — Unified CLI: pre-draft duplicate checks, automated build, deterministic page-budget check, audit, recording, and desktop archive.
+- `scripts/build_resume_docx.py` — ATS docx/PDF builder.
+- `scripts/keyword_audit.py` — Deterministic keyword coverage auditor.
+- `scripts/resume_store.py` — Low-level profile and application tracker store (`profile show`, `app list`, `app view`).
+- `scripts/tracker_push.py` — Syncs applications to the Grey Matter web tracker (`/tracker/`).
+- `scripts/archive_resume.py` — Archives finished resume PDF to `~/Desktop/resume-applications/<DD>-<mmm>/`.

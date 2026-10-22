@@ -339,9 +339,11 @@ pdftotext resume.pdf - | head -n 60
   verbatim at least once (full form, not just the abbreviation) and weight
   frequency by their importance in the posting — without stuffing past
   natural reading.
-- **Change log + gap summary.** Deliver both with every resume (formats in
-  SKILL.md): what changed and why (with Verify flags), plus honest
-  DEAL-BREAKER / SIGNIFICANT / MINOR gaps the resume cannot fix.
+- **Gap summary & verification notes.** Include a concise 2-4 bullet summary
+  in the final response highlighting honest DEAL-BREAKER / SIGNIFICANT / MINOR gaps
+  the resume cannot fix, and flag any numbers requiring candidate verification.
+  Standalone files (gaps.txt, changelog.txt) are optional and should only be
+  created if explicitly requested by the candidate.
 - **Top-third test.** Cover everything below roughly the top third of page 1
   and read only what remains. That slice must already name the target role,
   show the JD's must-have skills, and carry at least one quantified win.
