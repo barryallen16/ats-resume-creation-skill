@@ -15,5 +15,6 @@ scratch/*.pdf
 scratch/*.md
 scratch/*.txt
 scratch/*.jpg
+scratch/
 1816_paper.pdf
 main.tex
