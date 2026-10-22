@@ -1,6 +1,6 @@
 ---
 name: resume-builder
-description: Use this skill to CREATE a tailored, ATS-friendly software engineer resume (and optionally a cover letter) as a .docx/.pdf file — not to review, critique, or score an existing one. Trigger on requests like "write my resume for this job", "build me a FAANG-style resume", "tailor my resume to this job description", "make a resume for [Company]'s [Role] posting", "create an ATS-friendly resume", or any request whose deliverable is a new or updated resume file. Also handles keeping a persistent profile of the candidate's full work history so future resumes can be tailored quickly without re-collecting everything from scratch, and logging every resume actually generated (with company, role, job description, and date) so past applications can be tracked and duplicate applications flagged. Do not use this for resume review/feedback/ATS-scoring of an already-written resume — that is a different task.
+description: Use this skill to CREATE a tailored, ATS-friendly software engineer resume (and optionally a cover letter) as a .docx/.pdf file - not to review, critique, or score an existing one. Trigger on requests like "write my resume for this job", "build me a FAANG-style resume", "tailor my resume to this job description", "make a resume for [Company]'s [Role] posting", "create an ATS-friendly resume", or any request whose deliverable is a new or updated resume file. Also handles keeping a persistent profile of the candidate's full work history so future resumes can be tailored quickly without re-collecting everything from scratch, and logging every resume actually generated (with company, role, job description, and date) so past applications can be tracked and duplicate applications flagged. Do not use this for resume review/feedback/ATS-scoring of an already-written resume - that is a different task.
 ---
 
 # Resume Builder
@@ -13,23 +13,46 @@ history and every application produced.
 
 This skill is for **creation**, not critique. If someone hands you a
 finished resume and asks "how's this / what's wrong with it / will this
-pass ATS", that's a review task — this skill's rules and scripts are
+pass ATS", that's a review task - this skill's rules and scripts are
 built around producing new content, not scoring existing content.
 
 ## Why persistence and tracking matter here
 
-A resume is never really "done" — the same candidate will tailor a dozen
+A resume is never really "done" - the same candidate will tailor a dozen
 versions across a job search, and doing the intake interview from zero
 each time is exactly the kind of repeated, avoidable work an agent should
 eliminate. So this skill keeps two things on disk across sessions:
 
-1. A **profile** — the candidate's complete work history, which only ever
+1. A **profile** - the candidate's complete work history, which only ever
    grows (new jobs, new bullets, new projects get merged in, nothing is
    thrown away just because today's resume didn't use it).
-2. An **application tracker** — a record of every resume actually
+2. An **application tracker** - a record of every resume actually
    generated, with the job description, company, role, and date it was
    made, so the candidate (or you, next session) can answer "did I
    already apply here?" or "what did I send this company?"
+
+## The scripts at a glance
+
+Every script prints **TOON** (a compact, tab-separated form of JSON) and
+follows one exit-code contract:
+
+| Code | Meaning |
+|---|---|
+| 0 | success, including no-ops |
+| 1 | blocked - the action needs a decision from the candidate |
+| 2 | usage error - unknown flag, missing flag, bad value |
+
+Errors go to **stdout** as `error: <what went wrong>` + `help: <the exact
+command that fixes it>`. Every response ends with a `help[N]:` block of
+next steps. `profile show`, `app list` and `keyword_audit` take `--json`
+for raw JSON.
+
+```bash
+python3 scripts/resume_store.py                          # dashboard: live state
+python3 scripts/resume_store.py profile show             # full candidate history
+python3 scripts/resume_store.py app list                 # every application
+python3 scripts/resume_store.py app view <ref>           # one application
+```
 
 ## Workflow
 
@@ -42,13 +65,15 @@ its shape):
 python3 scripts/resume_store.py profile show
 ```
 
-- **If it exists**: read it. This is most of the intake done already —
+- **If it exists**: read it. This is most of the intake done already -
   only ask the candidate about anything genuinely missing or stale (a new
-  job since last time, a project they haven't mentioned, etc.).
+  job since last time, a project they haven't mentioned, etc.). Use
+  `profile show --summary` first if you only need the shape of the
+  history (job list + counts) rather than every bullet.
 - **If it's empty/missing**: interview the candidate for their full
-  background — not just what might fit one resume, but everything: every
+  background - not just what might fit one resume, but everything: every
   job with every accomplishment they can recall (push for quantified
-  outcomes — see `references/resume_writing_rules.md` section 6),
+  outcomes - see `references/resume_writing_rules.md` section 6),
   education, projects, awards, contact info. Write it as a JSON file
   and merge it in:
 
@@ -58,7 +83,7 @@ python3 scripts/resume_store.py profile update --json new_info.json
 
 Do this same `profile update` step any time you learn something new during
 a conversation (a job the candidate mentions in passing, a bullet they add
-while reviewing a draft) — don't let it live only in that one resume.
+while reviewing a draft) - don't let it live only in that one resume.
 
 ### 2. Get the job description for this specific application
 
@@ -70,15 +95,19 @@ company + role has already been done:
 python3 scripts/resume_store.py app check-duplicate --company "Acme Corp" --role "Backend Engineer"
 ```
 
-If it finds a match, tell the candidate and confirm they still want to
-proceed (per `resume_writing_rules.md` section 13, applying repeatedly at
-one company can itself hurt a candidacy) — don't silently regenerate.
+Exit code 0 means clear to proceed. Exit code 1 means an **exact
+duplicate** exists - the output names the existing application, its
+status and its resume path. Stop and confirm with the candidate before
+regenerating (per `resume_writing_rules.md` section 13, applying
+repeatedly at one company can itself hurt a candidacy) - don't silently
+regenerate. A `near_matches` section in the output is advisory only:
+mention it, but it does not block.
 
 ### 3. Tailor the content
 
-Read `references/resume_writing_rules.md` in full before drafting — it
+Read `references/resume_writing_rules.md` in full before drafting - it
 covers section order, exact heading names, how to write the
-headline/summary, how to phrase accomplishment bullets, and — critically —
+headline/summary, how to phrase accomplishment bullets, and - critically -
 how to mine the job description for the keywords that actually matter for
 ATS ranking. Then build a `resume_content.json` (schema in
 `references/data_schemas.md`) by selecting and rewording the best-fitting
@@ -103,7 +132,7 @@ strategy are written down (even briefly):
 
 Deliver two short artifacts with every resume (chat or markdown file):
 - **Gap summary:** honest DEAL-BREAKER / SIGNIFICANT / MINOR gaps the
-  resume cannot fix. E.g. "JD requires Kubernetes — zero K8s in profile.
+  resume cannot fix. E.g. "JD requires Kubernetes - zero K8s in profile.
   Highlighted Docker as closest proxy; study K8s before interview." Never
   invent experience to close a gap; suggest cover-letter framing instead.
 - **Change log:** every rewritten bullet / keyword injection with reason
@@ -118,7 +147,7 @@ formatting rationale, then:
 ```bash
 python3 scripts/build_resume_docx.py --content resume_content.json --out resume.docx --pdf
 # --out omitted: defaults to {First}_{Last}_Resume.docx (+ .pdf), e.g.
-# Jane_Doe_Resume.pdf — use that friendly name for the actual submission.
+# Jane_Doe_Resume.pdf - use that friendly name for the actual submission.
 # The slug+hash folder under resume_data/applications/ is internal tracking.
 # Add --md for a version-control-friendly markdown source next to the docx.
 # Add --txt for paste-ready plain text (one line per paragraph, never
@@ -134,11 +163,13 @@ Run the deterministic keyword audit before treating the draft as final
 python3 scripts/keyword_audit.py --content resume_content.json --jd job_description.txt
 ```
 
-Fix genuine gaps by grounding terms in real experience — never paste
-keywords the candidate doesn't have. Then visually verify the rendered
-PDF (procedure in `references/docx_creation.md`) before treating it as
-final — confirm it's exactly one page, nothing is cut off, and the top third
-of page 1 still makes the case by itself (the top-third test in
+The audit reports `missing`, `underrepresented`, `abbreviation_hygiene`,
+`stuffing_risk`, `excluded_skill_leaks` and `content_checks`. Fix genuine
+gaps by grounding terms in real experience - never paste keywords the
+candidate doesn't have. Then visually verify the rendered PDF (procedure
+in `references/docx_creation.md`) before treating it as final - confirm
+it's exactly one page, nothing is cut off, and the top third of page 1
+still makes the case by itself (the top-third test in
 `references/resume_writing_rules.md` section 14).
 
 Then check that the PDF's text layer is clean:
@@ -170,15 +201,20 @@ python3 scripts/resume_store.py app add \
 
 This copies the job description and both resume files into a dedicated
 folder under `resume_data/applications/<id>/` and adds a row to the
-tracker index — see `references/data_schemas.md` for exactly what's
-stored. Update the status later as the candidate hears back:
+tracker index - see `references/data_schemas.md` for exactly what's
+stored. The command refuses to record a second application for the same
+company + role (exit code 1, naming the existing one) - if the candidate
+has confirmed they want to apply again, re-run with `--force`.
+
+Update the status later as the candidate hears back:
 
 ```bash
-python3 scripts/resume_store.py app update-status --id <id> --status applied
+python3 scripts/resume_store.py app update-status --id <ref> --status applied
 ```
 
-Valid statuses: `drafted`, `applied`, `interviewing`, `offer`, `rejected`,
-`withdrawn`.
+`<ref>` is the short handle printed by `app add` (or the full id - both
+work). Valid statuses: `drafted`, `applied`, `interviewing`, `offer`,
+`rejected`, `withdrawn`.
 
 ### 5b. Sync to the Grey Matter web tracker
 
@@ -191,7 +227,7 @@ python3 scripts/tracker_push.py --url https://greymatter.isroot.in   # VPS
 ```
 
 It merges `applications_index.json` into the web tracker, keyed by
-application id — re-running is safe and updates statuses in place
+application id - re-running is safe and updates statuses in place
 (never duplicates). It also uploads each application's resume PDF/DOCX
 (as `<id>.pdf` / `<id>.docx`) so they are viewable on the tracker row
 and under Files. Do this as the last step of any application
@@ -222,6 +258,7 @@ not finished.**
 ```bash
 python3 scripts/resume_store.py app list                       # everything
 python3 scripts/resume_store.py app list --company "Acme Corp"  # filtered
+python3 scripts/resume_store.py app view <ref>                 # one in detail
 ```
 
 ### 7. Optional: cover letter
@@ -246,7 +283,8 @@ resume_data/                          <- persists across sessions
 ```
 
 All `resume_store.py` commands accept `--data-dir <path>` if this
-shouldn't default to `./resume_data` (e.g. a fixed location per candidate).
+shouldn't default to `./resume_data` (e.g. a fixed location per
+candidate). The `RESUME_DATA_DIR` environment variable works too.
 
 Outside the skill, the candidate keeps a flat PDF archive of everything that
 was ever sent out:
@@ -262,36 +300,38 @@ was ever sent out:
 One folder per day, `<DD>-<3-letter month>`, one PDF per application inside
 it. Written by `scripts/archive_resume.py` (section 5c).
 
-## Reference files — read these, don't guess
+## Reference files - read these, don't guess
 
-- `references/resume_writing_rules.md` — the actual content rules: section
+- `references/resume_writing_rules.md` - the actual content rules: section
   order and headings, how to write every section, keyword optimization,
   cover letter structure. **Read before drafting any content.**
-- `references/docx_creation.md` — the docx/PDF generation procedure, why
+- `references/docx_creation.md` - the docx/PDF generation procedure, why
   each ATS formatting choice exists, and the fix-it order if a resume
   overflows one page. **Read before running `build_resume_docx.py`.**
-- `references/data_schemas.md` — exact JSON shapes for `profile.json`,
+- `references/data_schemas.md` - exact JSON shapes for `profile.json`,
   `resume_content.json`, and `applications_index.json`.
 
 ## Scripts
 
-- `scripts/build_resume_docx.py` — turns a `resume_content.json` into
+- `scripts/build_resume_docx.py` - turns a `resume_content.json` into a
   `resume.docx` (and `resume.pdf` with `--pdf`, `resume.md` with `--md`).
   Requires `python-docx` and, for PDF conversion, LibreOffice (`soffice`) on PATH.
-- `scripts/keyword_audit.py` — stdlib-only pre-submission audit: JD terms
+- `scripts/keyword_audit.py` - stdlib-only pre-submission audit: JD terms
   missing/underrepresented in the resume, stuffing-risk flags, and
   excluded-skill leaks. Reports findings, never a numeric "ATS score".
-- `scripts/resume_store.py` — profile persistence (`profile show|update`)
-  and application tracking (`app add|list|check-duplicate|update-status`).
-- `scripts/tracker_push.py` — syncs recorded applications to the Grey
+- `scripts/resume_store.py` - profile persistence (`profile show|update`)
+  and application tracking (`app add|list|view|check-duplicate|update-status`).
+- `scripts/tracker_push.py` - syncs recorded applications to the Grey
   Matter web tracker (`/tracker/`); stdlib-only, idempotent, run after
   every `app add` / `update-status` (see section 5b).
   Pure Python + JSON files, no external services required.
-- `scripts/archive_resume.py` — copies a finished resume PDF into
+- `scripts/archive_resume.py` - copies a finished resume PDF into
   `~/Desktop/resume-applications/<DD>-<mmm>/<First_Last>_<Role>.pdf`;
   stdlib-only, idempotent, run after every resume is generated
   (see section 5c).
-- `scripts/ats_hyphen_check.py` — verifies every hyphenated word in the
+- `scripts/ats_hyphen_check.py` - verifies every hyphenated word in the
   content survives PDF text extraction, so a word broken across a line
   break never reaches an ATS as "firstauthor"; stdlib-only plus `pdftotext`,
   run before calling a resume final (see section 4).
+- `scripts/axi.py` - shared output layer: the TOON encoder and the
+  error/exit-code conventions every script follows.
